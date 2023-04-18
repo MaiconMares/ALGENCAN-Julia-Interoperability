@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+cd $(dirname "$0")
+
+PARENTDIR=$(dirname "$PWD")
+ALGENCAN=$(basename "$PWD")
+THISFILE=$(basename "$0")
+
+# Files where the version number is to be updated
+VERSIONED="./README \
+           ./VERSION"
+
+if [ "$#" = 0 ]; then
+  eval tar -C "$PARENTDIR" -czf "$PARENTDIR/$ALGENCAN.tgz" --no-recursion \
+       $(sed '/^###[[:space:]]*\./!d;s/^###[[:space:]]*\./"$ALGENCAN"/' "$THISFILE") && \
+  echo "$ALGENCAN.tgz successfully created in $PARENTDIR"
+elif [ "$1" = "-all" ]; then
+  eval tar -C "$PARENTDIR" -czf "$PARENTDIR/$ALGENCAN"-all.tgz --no-recursion \
+       $(sed '/^###\{0,1\}[[:space:]]*\./!d;s/^###\{0,1\}[[:space:]]*\./"$ALGENCAN"/' "$THISFILE") && \
+  echo "$ALGENCAN-all.tgz successfully created in $PARENTDIR"
+
+elif [ "$1" = "-new" -a "$#" = 2 ]; then
+  TEMPFILE=$(mktemp)
+  VERSION=$(cat VERSION)
+  NEWDIST="algencan-$2"
+
+  mkdir "$PARENTDIR/$NEWDIST" # &> /dev/null
+  if [ "$?" != 0 ]; then
+    echo "$THISFILE: cannot create directory $PARENTDIR/$NEWDIST"
+    exit 1
+  fi
+
+  eval tar -czf "$TEMPFILE" --no-recursion \
+       $(sed '/^###\{0,1\}[[:space:]]*\./!d;s/^###\{0,1\}[[:space:]]*\././' "$THISFILE")
+  tar -C "$PARENTDIR/$NEWDIST" -xzf "$TEMPFILE"
+
+  echo "aqui" $VERSION $FILE $PARENTDIR $NEWDIST
+  
+  for FILE in $VERSIONED; do
+    eval sed 's/"$VERSION"/"$2"/g' "$FILE" > "$PARENTDIR/$NEWDIST/$FILE" && \
+    touch -r "$FILE" "$PARENTDIR/$NEWDIST/$FILE"
+  done
+
+  rm -f "$TEMPFILE"
+  echo "$NEWDIST successfully created in $PARENTDIR"
+else
+  echo "Usage: $THISFILE [ -all | -new VERSION ]"
+  exit 2
+fi
+
+exit 0
+
+# Paths prepended with two hashes are to be included only when the -all option
+# is specified, whereas those prepended with three hashes are always included.
+
+## ./make-dist
+### ./Makefile
+### ./README
+### ./sources/algencan/algencan.f90
+### ./sources/algencan/feasgencan.f90
+### ./sources/algencan/gencan.f90
+### ./sources/algencan/lss.f90
+### ./sources/algencan/Makefile
+### ./sources/algencan/memev.f90
+### ./sources/algencan/newtkkt.f90
+## ./sources/blas/dgemm.f
+## ./sources/blas/dgemv.f
+## ./sources/blas/dtpmv.f
+## ./sources/blas/dtpsv.f
+## ./sources/blas/idamax.f
+## ./sources/blas/lsame.f
+## ./sources/blas/xerbla.f
+### ./sources/blas/Makefile
+### ./sources/blas/README.blas
+### ./sources/examples/algencanma.f90
+### ./sources/examples/Makefile
+## ./sources/hsl/fakemetis.f
+## ./sources/hsl/hsl_ma57d.f90
+## ./sources/hsl/hsl_zd11d.f90
+## ./sources/hsl/ma57ad.f
+## ./sources/hsl/Makefile
+## ./sources/hsl/mc21ad.f
+## ./sources/hsl/mc34ad.f
+## ./sources/hsl/mc47ad.f
+## ./sources/hsl/mc59ad.f
+## ./sources/hsl/mc64ad.f
+## ./sources/hsl/mc71ad.f
+### ./sources/hsl/README.hsl
+### ./sources/interfaces/cutest/algencanma-forcutest.f90
+### ./sources/interfaces/cutest/feasgencanma-forcutest.f90
+### ./sources/interfaces/cutest/gencanma-forcutest.f90
+### ./sources/interfaces/cutest/get.type
+### ./sources/interfaces/cutest/Makefile
+##  ./VERSION

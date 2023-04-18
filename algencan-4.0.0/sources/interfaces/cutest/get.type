@@ -1,0 +1,11 @@
+#!/bin/bash
+
+classification=$(grep "classification" $MASTSIF/$1.SIF | tr -s " " | cut -d " " -f 3)
+
+if [ "${classification:1:1}" = "U" -o "${classification:1:1}" = "X" -o "${classification:1:1}" = "B" ]; then
+    printf "gencanma-forcutest"
+elif [ "${classification:0:1}" = "N" ]; then
+    printf "feasgencanma-forcutest"
+else
+    printf "algencanma-forcutest"
+fi

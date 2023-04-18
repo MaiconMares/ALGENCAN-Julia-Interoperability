@@ -1,0 +1,2 @@
+This folder must contain the following files from BLAS:
+dgemm.f, dgemv.f, dtpmv.f, dtpsv.f, idamax.f, lsame.f, and xerbla.f

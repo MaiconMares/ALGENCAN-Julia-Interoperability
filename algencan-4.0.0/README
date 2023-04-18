@@ -1,0 +1,303 @@
+This folder contains Algencan 4.0.0.
+
+Thank you for you interest in Algencan.
+
+Questions and comments can be send to:
+
+J. M. Mart\'{\i}nez (martinez@ime.unicamp.br) and
+E. G. Birgin (egbirgin@ime.usp.br)
+
+Main Algencan's references are:
+
+R. Andreani, E. G. Birgin, J. M. Mart\'{\i}nez and M. L. Schuverdt, On
+Augmented Lagrangian methods with general lower-level constraints,
+SIAM Journal on Optimization 18, pp. 1286-1309, 2008. [DOI:
+10.1137/060654797]
+
+E. G. Birgin and J. M. Mart\'{\i}nez, Practical Augmented Lagrangian
+Methods for Constrained Optimization, Society for Industrial and
+Applied Mathematics, Philadelphia, 2014. [DOI:
+10.1137/1.9781611973365]
+
+The reference for Algencan 4.0.0 is:
+
+E. G. Birgin and J. M Mart\'{\i}nez, Complexity and performance of an
+Augmented Lagrangian algorithm, Optimization Methods and Software 35,
+pp. 885-920, 2020. [DOI: 10.1080/10556788.2020.1746962]
+
+============
+INSTRUCTIONS
+============
+
+Start by downloading the tarball algencan-4.0.0.tgz; and uncompress it
+with the command:
+
+tar -xvf algencan-4.0.0.tgz
+
+Set the environment variable ALGENCAN with the path to the folder were
+Algencan is being installed, for example,
+
+export ALGENCAN=$HOME/algencan-4.0.0
+
+Compiling Algencan requires third-party routines from BLAS and HSL.
+
+Required files from BLAS are: dgemm.f, dgemv.f, dtpmv.f, dtpsv.f,
+idamax.f, lsame.f, and xerbla.f; and they can be downloaded from the
+Netlib web site: http://www.netlib.org/blas/. Put this files in
+$ALGENCAN/sources/blas/. If you already have a liblas.a in your
+computer, then you can simply create a symbolic link to it in
+$ALGENCAN/sources/blas/lib/. (In this case you can skip "Section BLAS"
+below.)
+
+Required files from HSL are: fakemetis.f, hsl_zd11d.f90, mc21ad.f,
+mc47ad.f, mc64ad.f, hsl_ma57d.f90, ma57ad.f, mc34ad.f, mc59ad.f, and
+mc71ad.f. You can obtain them here:
+http://www.hsl.rl.ac.uk/catalogue/ma57.html free for personal academic
+use. Put this files in $ALGENCAN/sources/hsl/. If you already have HSL
+installed in your computer, create a symbolic link to file
+hsl_ma57_double.mod in $ALGENCAN/sources/hsl/inc/ and a symbolic link
+to the library libhsl.a in $ALGENCAN/sources/hsl/lib/. (In this case
+you can skip "Section HSL" below.)
+
+There are makefiles you can use to compile everything in
+Algencan. Instruction for using them can be find at the end of this
+file. Instructions for a manual compilation follows.
+
+====
+BLAS
+====
+
+(1) Compile the BLAS files and make libblas.a with the following
+commands:
+
+gfortran -c -O3 $ALGENCAN/sources/blas/dgemm.f
+gfortran -c -O3 $ALGENCAN/sources/blas/dgemv.f
+gfortran -c -O3 $ALGENCAN/sources/blas/dtpmv.f
+gfortran -c -O3 $ALGENCAN/sources/blas/dtpsv.f
+gfortran -c -O3 $ALGENCAN/sources/blas/idamax.f
+gfortran -c -O3 $ALGENCAN/sources/blas/lsame.f
+gfortran -c -O3 $ALGENCAN/sources/blas/xerbla.f
+
+ar rcs libblas.a dgemm.o dgemv.o dtpmv.o dtpsv.o idamax.o lsame.o xerbla.o
+
+Move the library to sources/blas/lib/ typing
+
+mv libblas.a $ALGENCAN/sources/blas/lib/.
+
+You can now (if desired) remove all the .o files in
+$ALGENCAN/sources/blas/ typing
+
+rm $ALGENCAN/sources/blas/*.o
+
+===
+HSL
+===
+
+(2) Compile the HSL files and make libhsl.a with the following
+commands:
+
+gfortran -c -O3 $ALGENCAN/sources/hsl/hsl_zd11d.f90
+gfortran -c -O3 $ALGENCAN/sources/hsl/hsl_ma57d.f90
+gfortran -c -O3 $ALGENCAN/sources/hsl/ma57ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/mc34ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/mc47ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/mc59ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/mc64ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/mc21ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/mc71ad.f
+gfortran -c -O3 $ALGENCAN/sources/hsl/fakemetis.f
+
+ar rcs libhsl.a hsl_zd11d.o hsl_ma57d.o ma57ad.o mc34ad.o mc47ad.o \
+mc59ad.o mc64ad.o mc21ad.o mc71ad.o fakemetis.o
+
+Move the library to sources/blas/lib/ typing
+
+mv libhsl.a $ALGENCAN/sources/hsl/lib/.
+
+Move the hsl_ma57_double.mod files to sources/hsl/inc/ typing
+
+mv hsl_ma57_double.mod $ALGENCAN/sources/hsl/inc/.
+
+You can now (if desired) remove hsl_zd11_double.mod and all the .o
+files in $ALGENCAN/sources/hsl/ typing
+
+rm $ALGENCAN/sources/hsl/hsl_zd11_double.mod
+
+and
+
+rm $ALGENCAN/sources/hsl/*.o
+
+========
+ALGENCAN
+========
+
+(3) Compile Algencan and make libalgencan.a with the following
+commands:
+
+gfortran -c -O3 -Wall -I$ALGENCAN/sources/hsl/inc $ALGENCAN/sources/algencan/lss.f90
+gfortran -c -O3 -Wall $ALGENCAN/sources/algencan/gencan.f90
+gfortran -c -O3 -Wall $ALGENCAN/sources/algencan/memev.f90
+gfortran -c -O3 -Wall $ALGENCAN/sources/algencan/feasgencan.f90
+gfortran -c -O3 -Wall $ALGENCAN/sources/algencan/newtkkt.f90
+gfortran -c -O3 -Wall $ALGENCAN/sources/algencan/algencan.f90
+
+ar rcs libalgencan.a lss.o gencan.o memev.o feasgencan.o newtkkt.o algencan.o
+
+Move the library to sources/algencan/lib/ typing
+
+mv libalgencan.a $ALGENCAN/sources/algencan/lib/.
+
+Move bmalgencan.mod, bmgencan.mod bmfeasgencan.mod file to sources/algencan/inc/ typing
+
+mv bmalgencan.mod $ALGENCAN/sources/algencan/inc/.
+mv bmgencan.mod $ALGENCAN/sources/algencan/inc/.
+mv bmfeasgencan.mod $ALGENCAN/sources/algencan/inc/.
+
+You can now (if desired) remove bmnewtkkt.mod, memev.mod, lss.mod and
+all the .o files in $ALGENCAN/sources/algencan/ typing
+
+rm $ALGENCAN/sources/algencan/bmnewtkkt.mod
+rm $ALGENCAN/sources/algencan/memev.mod
+rm $ALGENCAN/sources/algencan/lss.mod
+
+and
+
+rm $ALGENCAN/sources/algencan/*.o
+
+============
+YOUR PROGRAM
+============
+
+(4) You are now ready to compile your main file that calls
+algencan. In fact, algencan provides three callable routines:
+
+(a) gencan, for solving unconstrained and bound-constrained problems,
+
+(b) feasgencan, for solving feasibility problem, and
+
+(c) algencan itself, for solving nonlinear programming problems.
+
+Assume that your want to solve a nonlinear programming problem and
+that your main program is in a file named algencanma.f90. (If you do
+not have your own program yet, you can copy the example in
+$ALGENCAN/sources/examples/algencanma.f90. Copy this file to your own
+folder.)
+
+First compile your main program with the command:
+
+gfortran -c -O3 -Wall -I$ALGENCAN/sources/algencan/inc algencanma.f90
+
+Then link everything to produce the executable typing:
+
+gfortran algencanma.o -L$ALGENCAN/sources/blas/lib -L$ALGENCAN/sources/hsl/lib \
+         -L$ALGENCAN/sources/algencan/lib -lblas -lhsl -lalgencan -o algencanma
+
+Now execute your program typing
+
+./algencanma
+
+Examples of main program that call gencan and feasgencan are missing
+and we expect to include them soon. (For now, the calling sequence of
+routines gencan and feasgencan can be seen in the CUTEst interfaces in
+$ALGENCAN/sources/interfaces/cutest/gencan-forcutest.f90 and
+$ALGENCAN/sources/interfaces/cutest/feasgencan-forcutest.f90.)
+
+=============================
+SOLVING A PROBLEM FROM CUTEST
+=============================
+
+(5) Instead of solving your own problem, you may would like to solve a
+problem from the CUTEst collection. Algencan 4.0.0 has three different
+interfaces with CUTEst to solve (a) unconstrained and
+bound-constrained problems, (b) feasibility problems, and (c)
+nonlinear programming problems.
+
+In any case you must first follow Steps 1 to 3 above. Of course, you
+need to have CUTEst installed in your computer. You can find it here:
+https://github.com/ralna/CUTEst.
+
+Alternative ways exist; and you can find them reading the CUTEst
+documentation. We show here how to compile and run Algencan for
+solving a CUTEst problem 'by hand'.
+
+Start by setting environment variables related to the CUTEst
+installation. For example,
+
+export MASTSIF=$HOME/CUTEst/sif
+export ARCHDEFS=$HOME/CUTEst/archdefs
+export SIFDECODE=$HOME/CUTEst/sifdecode
+export CUTEST=$HOME/CUTEst/cutest
+export MYARCH=mac64.osx.gfo
+
+Assume the problem you want to solve is MYPROBLEM.SIF.
+
+Execute the sifdecoder to generate the relevant .f files by typing:
+
+$SIFDECODE/bin/sifdecoder MYPROBLEM.SIF
+
+Sifdecoder will generate the files ELFUN.f, EXTER.f, GROUP.f, and RANGE.f.
+
+Compile them typing:
+
+gfortran -c -O3 ELFUN.f EXTER.f GROUP.f RANGE.f
+
+(a) If the problem is unconstrained or bound-constrained, then you
+must use the Algencan main program in
+$ALGENCAN/sources/interfaces/cutest/gencanma-forcutest.f90. You must
+compile it typing:
+
+gfortran -c -O3 -Wall $ALGENCAN/sources/interfaces/cutest/gencanma-forcutest.f90
+
+And then you link all together with:
+
+gfortran ELFUN.o EXTER.o GROUP.o RANGE.o gencanma-forcutest.o \
+            -L$ALGENCAN/sources/blas/lib -lblas \
+	    -L$ALGENCAN/sources/hsl/lib -lhsl \
+            -L$ALGENCAN/sources/algencan/lib-L$PWD -lalgencan \
+            -L$CUTEST/objects/$MYARCH/double -lcutest -o gencanma-forcutest
+
+Finally, run it by typing
+
+./gencanma-forcutest
+
+(b) If the problem is a feasibility problem, i.e., with no objective
+function (only equality, inequality, and bound constraints), then
+repeat the steps in (a) substituting gencanma-forcutest with
+feasgencanma-forcutest everywhere.
+
+(c) If the problem is a nonlinear programming problem, then repeat the
+steps in (a) substituting gencanma-forcutest with algencanma-forcutest
+everywhere.
+
+=========
+MAKEFILES
+=========
+
+Typing 'make' in $ALGENCAN generates libraries libblas.a, libhsl.a,
+and libalgencan.a. Creating libblas.a is skipped if
+$ALGENCAN/sources/blas/lib/libblas.a already exists. Creating libhsl.a
+is skipped if $ALGENCAN/sources/hsl/inc/hsl_ma57_double.mod and
+$ALGENCAN/sources/hsl/lib/libhsl.a already exist.
+
+Typying 'make clean' in $ALGENCAN removes all compiled and include
+files in folders and subfolders, except the libraries in
+$ALGENCAN/sources/blas/lib/, $ALGENCAN/sources/hsl/lib/,
+$ALGENCAN/sources/algencan/lib/, .mod files in
+$ALGENCAN/sources/hsl/inc/ and $ALGENCAN/sources/algencan/inc/, and
+binaries.
+
+Typing 'make distclean' in $ALGENCAN does the same as 'make clean'
+plus removing the libaries, the .mod files, and the binaries mentioned
+in the paragraph above.
+
+Typying 'make example' in $ALGENCAN compiles the main program
+$ALGENCAN/sources/examples/algencanma.f90 and generates the executable
+$ALGENCAN/bin/examples/algencanma.
+
+Typying 'make cutest PROBNAME=PROB' compiles the corresponding
+Algencan's CUTEst interface, depending on whether PROB.SIF is (a) an
+unconstrained or bound-constrained problem, (b) a feasibility problem,
+or (c) a nonlinear programming problem. The name of the executable
+file is gencanma-forcutest, feasgencanma-forcutest, or
+algencanma-forcutest in cases (a), (b), and (c), respectively; and it
+is located in $ALGENCAN/bin/cutest/.
