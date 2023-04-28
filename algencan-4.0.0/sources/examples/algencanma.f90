@@ -24,204 +24,297 @@ program algencama
   implicit none
 
   ! Re-define this type (pdata_type) anyway you want. Algencan
-  ! receives a pointer to a 'structure of this type'. Algencan has no
-  ! access to the structure. It simple passes the pointer back to the
-  ! user defined subroutines evalf, evalg, evalc, evalj, and
-  ! evalhl. So, this is a trade safe way (no common blocks) of passing
-  ! to the user-provided routines any information related to the
-  ! problem. In this example, it is only being used for the user to
-  ! count by itself the number of calls to each routine.
+    ! receives a pointer to a 'structure of this type'. Algencan has no
+    ! access to the structure. It simple passes the pointer back to the
+    ! user defined subroutines evalf, evalg, evalc, evalj, and
+    ! evalhl. So, this is a trade safe way (no common blocks) of passing
+    ! to the user-provided routines any information related to the
+    ! problem. In this example, it is only being used for the user to
+    ! count by itself the number of calls to each routine.
   type :: pdata_type
-     integer :: counters(5) = 0
+    integer :: counters(5) = 0
   end type pdata_type
 
-  ! LOCAL SCALARS
-  logical :: corrin,extallowed,rhoauto,scale
-  integer :: allocerr,hlnnzmax,ierr,inform,istop,jnnzmax,m,maxoutit,n,nwcalls,nwtotit,outiter,p,totiter
-  real(kind=8) :: bdsvio,csupn,epsfeas,epscompl,epsopt,f,finish,nlpsupn,rhoini,ssupn,start
-  type(pdata_type), target :: pdata
+  abstract interface
+    subroutine evalf(n,x,f,inform,pdataptr)
+      import c_ptr
 
-  ! LOCAL ARRAYS
-  logical, allocatable :: lind(:),uind(:)
-  real(kind=8), allocatable :: c(:),lbnd(:),ubnd(:),lambda(:),x(:)
+      ! SCALAR ARGUMENTS
+      integer, intent(in) :: n
+      integer, intent(inout) :: inform
+      real(kind=8), intent(out) :: f
+      type(c_ptr), optional, intent(in) :: pdataptr
 
-  ! Number of variables
+      ! ARRAY ARGUMENTS
+      real(kind=8), intent(in) :: x(n)
 
-  n = 3
+      ! This routine must compute the objective function.
+    end subroutine evalf
 
-  allocate(x(n),lind(n),lbnd(n),uind(n),ubnd(n),stat=allocerr)
+    subroutine evalg(n,x,g,inform,pdataptr)
+      import c_ptr
 
-  if ( allocerr .ne. 0 ) then
-     write(*,*) 'Allocation error.'
-     stop
-  end if
+      ! SCALAR ARGUMENTS
+      integer, intent(in) :: n
+      integer, intent(inout) :: inform
+      type(c_ptr), optional, intent(in) :: pdataptr
 
-  ! Initial guess and bound constraints
+      ! ARRAY ARGUMENTS
+      real(kind=8), intent(in) :: x(n)
+      real(kind=8), intent(out) :: g(n)
 
-  x(1) = 0.1d0
-  x(2) = 0.7d0
-  x(3) = 0.2d0
+      ! This routine must compute the gradient of the objective
+      ! function.
+    end subroutine evalg
 
-  lind(1:n) = .true.
-  lbnd(1:n) = 0.0d0
+    subroutine evalc(n,x,m,p,c,inform,pdataptr)
+      import c_ptr
 
-  uind(1:n) = .false.
-  ubnd(1:n) = 0.0d0
+      ! SCALAR ARGUMENTS
+      integer, intent(in) :: m,n,p
+      integer, intent(inout) :: inform
+      type(c_ptr), optional, intent(in) :: pdataptr
 
-  ! Number equality (m) and inequality (p) constraints.
+      ! ARRAY ARGUMENTS
+      real(kind=8), intent(in) :: x(n)
+      real(kind=8), intent(out) :: c(m+p)
 
-  m = 1
-  p = 1
+      ! This routine must compute all the m+p constraints.
+    end subroutine evalc
 
-  allocate(lambda(m+p),c(m+p),stat=allocerr)
+    subroutine evalj(n,x,m,p,ind,sorted,jsta,jlen,lim,jvar,jval,inform,pdataptr)
+      import c_ptr
 
-  if ( allocerr .ne. 0 ) then
-     write(*,*) 'Allocation error.'
-     stop
-  end if
+      ! SCALAR ARGUMENTS
+      integer, intent(in) :: lim,m,n,p
+      integer, intent(inout) :: inform
+      type(c_ptr), optional, intent(in) :: pdataptr
 
-  ! Initial guess for the Lagrange multipliers
+      ! ARRAY ARGUMENTS
+      logical, intent(in) :: ind(m+p)
+      real(kind=8), intent(in) :: x(n)
+      logical, intent(out) :: sorted(m+p)
+      integer, intent(out) :: jsta(m+p),jlen(m+p),jvar(lim)
+      real(kind=8), intent(out) :: jval(lim)
 
-  lambda(1:m+p) = 0.0d0
+    end subroutine evalj
 
-  ! Number of entries in the Jacobian of the constraints
+    subroutine evalhl(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,pdataptr)
+      import c_ptr
 
-  jnnzmax = 2*n
+      logical, intent(in) :: inclf
+      integer, intent(in) :: m,n,lim,p
+      integer, intent(out) :: hlnnz
+      integer, intent(inout) :: inform
+      type(c_ptr), optional, intent(in) :: pdataptr
 
-  ! This should be the number of entries in the Hessian of the
-  ! Lagrangian. But, in fact, some extra space is need (to store the
-  ! Hessian of the Augmented Lagrangian, whose size is hard to
-  ! predict, and/or to store the Jacobian of the KKT system). Thus,
-  ! declare it as large as possible.
+      ! ARRAY ARGUMENTS
+      real(kind=8), intent(in) :: lambda(m+p),x(n)
+      integer, intent(out) :: hlrow(lim),hlcol(lim)
+      real(kind=8), intent(out) :: hlval(lim)
 
-  hlnnzmax = huge( 1 ) / 2
-
-  ! Feasibility, complementarity, and optimality tolerances
-
-  epsfeas  = 1.0d-08
-  epscompl = 1.0d-08
-  epsopt   = 1.0d-08
-
-  ! Maximum number of outer iterations
-
-  maxoutit = 50
-
-  ! rhoauto means that Algencan will automatically set the initial
-  ! value of the penalty parameter. If you set rhoauto = .false. then
-  ! you must set rhoini below with a meaningful value.
-  rhoauto = .true.
-
-  if ( .not. rhoauto ) then
-     rhoini = 1.0d-08
-  end if
-
-  ! scale = .true. means that you allow Algencan to automatically
-  ! scale the constraints. In any case, the feasibility tolerance
-  ! (epsfeas) will be always satisfied by the UNSCALED original
-  ! constraints.
-  scale = .false.
-
-  ! extallowed = .true. means that you allow Gencan (the active-set
-  ! method used by Algencan to solve the bound-constrained
-  ! subproblems) to perform extrapolations. This strategy may use
-  ! extra evaluations of the objective function and the constraints
-  ! per iterations; but it uses to provide overal savings. You should
-  ! test both choices for the problem at hand.
-  extallowed = .true.
-
-  ! corrin = .true. means that you allow the inertia of the
-  ! Jacobian of the KKT system to be corrected during the acceleration
-  ! process. You should test both choices for the problem at hand.
-  corrin = .false.
-
-  call cpu_time(start)
-
-  call algencan(evalf,evalg,evalc,evalj,evalhl,jnnzmax,hlnnzmax, &
-       n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
-       scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
-       outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
-
-  call cpu_time(finish)
-
-  write(*,*)
-  write(*,*) 'Number of variables                                   = ',n
-  write(*,*) 'Number of equality constraints                        = ',m
-  write(*,*) 'Number of inequality constraints                      = ',p
-
-  write(*,*)
-  write(*,*) '(REPORTED BY SOLVER) istop                            = ',istop
-  write(*,*) '(REPORTED BY SOLVER) ierr                             = ',ierr
-  write(*,*) '(REPORTED BY SOLVER) f                                = ',f
-  write(*,*) '(REPORTED BY SOLVER) csupn                            = ',csupn
-  write(*,*) '(REPORTED BY SOLVER) ssupn                            = ',ssupn
-  write(*,*) '(REPORTED BY SOLVER) nlpsupn                          = ',nlpsupn
-  write(*,*) '(REPORTED BY SOLVER) bounds violation                 = ',bdsvio
-  write(*,*) '(REPORTED BY SOLVER) Number of outer iterations       = ',outiter
-  write(*,*) '(REPORTED BY SOLVER) Number of inner iterations       = ',totiter
-  write(*,*) '(REPORTED BY SOLVER) Number of Newton-KKT trials      = ',nwcalls
-  write(*,*) '(REPORTED BY SOLVER) Number of Newton-KKT iterations  = ',nwtotit
-
-  write(*,*)
-  write(*,*) '(COMPUTED BY CALLER) Number of calls to evalf         = ',pdata%counters(1)
-  write(*,*) '(COMPUTED BY CALLER) Number of calls to evalg         = ',pdata%counters(2)
-  write(*,*) '(COMPUTED BY CALLER) Number of calls to evalc         = ',pdata%counters(3)
-  write(*,*) '(COMPUTED BY CALLER) Number of calls to evalj         = ',pdata%counters(4)
-  write(*,*) '(COMPUTED BY CALLER) Number of calls to evalhl        = ',pdata%counters(5)
-  write(*,*) '(COMPUTED BY CALLER) CPU time in seconds              = ',finish - start
-
-  ! *****************************************************************
-  ! *****************************************************************
-  ! Just checking ...
-
-  inform = 0
-
-  call evalf(n,x,f,inform,c_loc(pdata))
-
-  if ( inform .ne. 0 ) then
-     write(*,*) 'error when calling evalf in the main file. '
-     stop
-  end if
-
-  call evalc(n,x,m,p,c,inform,c_loc(pdata))
-
-  if ( inform .ne. 0 ) then
-     write(*,*) 'error when calling evalc in the main file. '
-     stop
-  end if
-
-  csupn = max( 0.0d0, max( maxval( abs( c(1:m) ) ), maxval( c(m+1:m+p) ) ) )
-
-  bdsvio = max( 0.0d0, max( maxval( lbnd(1:n) - x(1:n), lind(1:n) ), maxval( x(1:n) - ubnd(1:n), uind(1:n) ) ) )
-
-  write(*,*)
-  write(*,*) '(COMPUTED BY CALLER) f                                = ',f
-  write(*,*) '(COMPUTED BY CALLER) csupn                            = ',csupn
-  write(*,*) '(COMPUTED BY CALLER) bounds violation                 = ',bdsvio
-
-  write(*,*)
-  write(*,*) 'When a quantity appears as computed by solver and computed by caller, they must coincide.'
-  write(*,*) '(In case they do not coincide, please report it as a bug.)'
-  ! *****************************************************************
-  ! *****************************************************************
-
-  write (*,*) "     x = ", x
-  write (*,*) "lambda = ", lambda
-
-  deallocate(lind,lbnd,uind,ubnd,x,lambda,c,stat=allocerr)
-
-  if ( allocerr .ne. 0 ) then
-     write(*,*) 'Deallocation error.'
-     stop
-  end if
-
-  stop
+    end subroutine evalhl
+  end interface
 
 contains
 
+  subroutine main(user_evalf, user_evalg, user_evalc, user_evalj, user_evalhl)
+    implicit none
+
+    ! PROCEDURE ARGUMENTS
+    procedure(evalf) :: user_evalf
+    procedure(evalg) :: user_evalg
+    procedure(evalc) :: user_evalc
+    procedure(evalj) :: user_evalj
+    procedure(evalhl) :: user_evalhl
+
+
+    ! LOCAL SCALARS
+    logical :: corrin,extallowed,rhoauto,scale
+    integer :: allocerr,hlnnzmax,ierr,inform,istop,jnnzmax,m,maxoutit,n,nwcalls,nwtotit,outiter,p,totiter
+    real(kind=8) :: bdsvio,csupn,epsfeas,epscompl,epsopt,f,finish,nlpsupn,rhoini,ssupn,start
+    type(pdata_type), target :: pdata
+
+    ! LOCAL ARRAYS
+    logical, allocatable :: lind(:),uind(:)
+    real(kind=8), allocatable :: c(:),lbnd(:),ubnd(:),lambda(:),x(:)
+
+    ! Number of variables
+
+    n = 3
+
+    allocate(x(n),lind(n),lbnd(n),uind(n),ubnd(n),stat=allocerr)
+
+    if ( allocerr .ne. 0 ) then
+      write(*,*) 'Allocation error.'
+      stop
+    end if
+
+    ! Initial guess and bound constraints
+
+    x(1) = 0.1d0
+    x(2) = 0.7d0
+    x(3) = 0.2d0
+
+    lind(1:n) = .true.
+    lbnd(1:n) = 0.0d0
+
+    uind(1:n) = .false.
+    ubnd(1:n) = 0.0d0
+
+    ! Number equality (m) and inequality (p) constraints.
+
+    m = 1
+    p = 1
+
+    allocate(lambda(m+p),c(m+p),stat=allocerr)
+
+    if ( allocerr .ne. 0 ) then
+      write(*,*) 'Allocation error.'
+      stop
+    end if
+
+    ! Initial guess for the Lagrange multipliers
+
+    lambda(1:m+p) = 0.0d0
+
+    ! Number of entries in the Jacobian of the constraints
+
+    jnnzmax = 2*n
+
+    ! This should be the number of entries in the Hessian of the
+    ! Lagrangian. But, in fact, some extra space is need (to store the
+    ! Hessian of the Augmented Lagrangian, whose size is hard to
+    ! predict, and/or to store the Jacobian of the KKT system). Thus,
+    ! declare it as large as possible.
+
+    hlnnzmax = huge( 1 ) / 2
+
+    ! Feasibility, complementarity, and optimality tolerances
+
+    epsfeas  = 1.0d-08
+    epscompl = 1.0d-08
+    epsopt   = 1.0d-08
+
+    ! Maximum number of outer iterations
+
+    maxoutit = 50
+
+    ! rhoauto means that Algencan will automatically set the initial
+    ! value of the penalty parameter. If you set rhoauto = .false. then
+    ! you must set rhoini below with a meaningful value.
+    rhoauto = .true.
+
+    if ( .not. rhoauto ) then
+      rhoini = 1.0d-08
+    end if
+
+    ! scale = .true. means that you allow Algencan to automatically
+    ! scale the constraints. In any case, the feasibility tolerance
+    ! (epsfeas) will be always satisfied by the UNSCALED original
+    ! constraints.
+    scale = .false.
+
+    ! extallowed = .true. means that you allow Gencan (the active-set
+    ! method used by Algencan to solve the bound-constrained
+    ! subproblems) to perform extrapolations. This strategy may use
+    ! extra evaluations of the objective function and the constraints
+    ! per iterations; but it uses to provide overal savings. You should
+    ! test both choices for the problem at hand.
+    extallowed = .true.
+
+    ! corrin = .true. means that you allow the inertia of the
+    ! Jacobian of the KKT system to be corrected during the acceleration
+    ! process. You should test both choices for the problem at hand.
+    corrin = .false.
+
+    call cpu_time(start)
+
+    call algencan(evalf,evalg,evalc,evalj,evalhl,jnnzmax,hlnnzmax, &
+        n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
+        scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
+        outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
+
+    call cpu_time(finish)
+
+    write(*,*)
+    write(*,*) 'Number of variables                                   = ',n
+    write(*,*) 'Number of equality constraints                        = ',m
+    write(*,*) 'Number of inequality constraints                      = ',p
+
+    write(*,*)
+    write(*,*) '(REPORTED BY SOLVER) istop                            = ',istop
+    write(*,*) '(REPORTED BY SOLVER) ierr                             = ',ierr
+    write(*,*) '(REPORTED BY SOLVER) f                                = ',f
+    write(*,*) '(REPORTED BY SOLVER) csupn                            = ',csupn
+    write(*,*) '(REPORTED BY SOLVER) ssupn                            = ',ssupn
+    write(*,*) '(REPORTED BY SOLVER) nlpsupn                          = ',nlpsupn
+    write(*,*) '(REPORTED BY SOLVER) bounds violation                 = ',bdsvio
+    write(*,*) '(REPORTED BY SOLVER) Number of outer iterations       = ',outiter
+    write(*,*) '(REPORTED BY SOLVER) Number of inner iterations       = ',totiter
+    write(*,*) '(REPORTED BY SOLVER) Number of Newton-KKT trials      = ',nwcalls
+    write(*,*) '(REPORTED BY SOLVER) Number of Newton-KKT iterations  = ',nwtotit
+
+    write(*,*)
+    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalf         = ',pdata%counters(1)
+    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalg         = ',pdata%counters(2)
+    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalc         = ',pdata%counters(3)
+    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalj         = ',pdata%counters(4)
+    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalhl        = ',pdata%counters(5)
+    write(*,*) '(COMPUTED BY CALLER) CPU time in seconds              = ',finish - start
+
+    ! *****************************************************************
+    ! *****************************************************************
+    ! Just checking ...
+
+    inform = 0
+
+    call user_evalf(n,x,f,inform,c_loc(pdata))
+
+    if ( inform .ne. 0 ) then
+      write(*,*) 'error when calling evalf in the main file. '
+      stop
+    end if
+
+    call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
+
+    if ( inform .ne. 0 ) then
+      write(*,*) 'error when calling evalc in the main file. '
+      stop
+    end if
+
+    csupn = max( 0.0d0, max( maxval( abs( c(1:m) ) ), maxval( c(m+1:m+p) ) ) )
+
+    bdsvio = max( 0.0d0, max( maxval( lbnd(1:n) - x(1:n), lind(1:n) ), maxval( x(1:n) - ubnd(1:n), uind(1:n) ) ) )
+
+    write(*,*)
+    write(*,*) '(COMPUTED BY CALLER) f                                = ',f
+    write(*,*) '(COMPUTED BY CALLER) csupn                            = ',csupn
+    write(*,*) '(COMPUTED BY CALLER) bounds violation                 = ',bdsvio
+
+    write(*,*)
+    write(*,*) 'When a quantity appears as computed by solver and computed by caller, they must coincide.'
+    write(*,*) '(In case they do not coincide, please report it as a bug.)'
+    ! *****************************************************************
+    ! *****************************************************************
+
+    write (*,*) "     x = ", x
+    write (*,*) "lambda = ", lambda
+
+    deallocate(lind,lbnd,uind,ubnd,x,lambda,c,stat=allocerr)
+
+    if ( allocerr .ne. 0 ) then
+      write(*,*) 'Deallocation error.'
+      stop
+    end if
+
+    stop
+  end subroutine main
+
   ! *****************************************************************
   ! *****************************************************************
 
-  subroutine evalf(n,x,f,inform,pdataptr)
+  subroutine evalf_original(n,x,f,inform,pdataptr)
 
     implicit none
 
@@ -244,12 +337,12 @@ contains
 
     f = ( x(1) + 3.0d0 * x(2) + x(3) ) ** 2.0d0 + 4.0d0 * (x(1) - x(2)) ** 2.0d0
 
-  end subroutine evalf
+  end subroutine evalf_original
 
   ! *****************************************************************
   ! *****************************************************************
 
-  subroutine evalg(n,x,g,inform,pdataptr)
+  subroutine evalg_original(n,x,g,inform,pdataptr)
 
     implicit none
 
@@ -278,12 +371,12 @@ contains
     g(2) = 6.0d0 * t1 - 8.0d0 * t2
     g(3) = 2.0d0 * t1
 
-  end subroutine evalg
+  end subroutine evalg_original
 
   ! *****************************************************************
   ! *****************************************************************
 
-  subroutine evalc(n,x,m,p,c,inform,pdataptr)
+  subroutine evalc_original(n,x,m,p,c,inform,pdataptr)
 
     implicit none
 
@@ -307,12 +400,12 @@ contains
     c(1) = 1.0d0 - x(1) - x(2) - x(3)
     c(2) = - 6.0d0 * x(2) - 4.0d0 * x(3) + x(1) ** 3.0d0 + 3.0d0
 
-  end subroutine evalc
+  end subroutine evalc_original
 
   ! *****************************************************************
   ! *****************************************************************
 
-  subroutine evalj(n,x,m,p,ind,sorted,jsta,jlen,lim,jvar,jval,inform,pdataptr)
+  subroutine evalj_original(n,x,m,p,ind,sorted,jsta,jlen,lim,jvar,jval,inform,pdataptr)
 
     implicit none
 
@@ -387,12 +480,12 @@ contains
        sorted(2) = .true.
     end if
 
-  end subroutine evalj
+  end subroutine evalj_original
 
   ! *****************************************************************
   ! *****************************************************************
 
-  subroutine evalhl(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,pdataptr)
+  subroutine evalhl_original(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,pdataptr)
 
     implicit none
 
@@ -453,6 +546,6 @@ contains
     hlcol(hlnnz) = 1
     hlval(hlnnz) = lambda(2) * ( - 6.0d0 * x(1) )
 
-  end subroutine evalhl
+  end subroutine evalhl_original
 
 end program algencama
