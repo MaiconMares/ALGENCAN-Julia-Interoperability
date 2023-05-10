@@ -230,10 +230,10 @@ contains
 
     call cpu_time(start)
 
-    call algencan(evalf,evalg,evalc,evalj,evalhl,jnnzmax,hlnnzmax, &
-        n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
-        scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
-        outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
+    !call algencan(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl,jnnzmax,hlnnzmax, &
+    !    n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
+    !    scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
+    !    outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
 
     call cpu_time(finish)
 
@@ -269,14 +269,14 @@ contains
 
     inform = 0
 
-    call user_evalf(n,x,f,inform,c_loc(pdata))
+    ! call user_evalf(n,x,f,inform,c_loc(pdata))
 
     if ( inform .ne. 0 ) then
       write(*,*) 'error when calling evalf in the main file. '
       stop
     end if
 
-    call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
+    ! call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
 
     if ( inform .ne. 0 ) then
       write(*,*) 'error when calling evalc in the main file. '
