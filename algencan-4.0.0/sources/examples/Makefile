@@ -1,7 +1,7 @@
 fortran: algencanma_f.o
-	$(FC) $(FFLAGS) algencanma_f.o -L$(BLASSRC)/lib -L$(HSLSRC)/lib -L$(ALGSRC)/lib -lalgencan -lhsl -lblas -o algencanma
+	$(FC) $(FFLAGS) -L$(BLASSRC)/lib -L$(HSLSRC)/lib -L$(ALGSRC)/lib -lalgencan -lhsl -lblas -shared -o libalgencanma.so algencanma_f.o
 	mkdir -p $(BIN)/examples
-	mv algencanma $(BIN)/examples
+	# mv algencanma $(BIN)/examples
 
 c: algencanma_c.o
 	gcc -g $(FFLAGS) algencanma_c.o -L$(BLASSRC)/lib -L$(HSLSRC)/lib -L$(ALGSRC)/lib -lalgencan -lhsl -lblas -lgfortran -lm -ldl -o algencanma_c
@@ -9,7 +9,7 @@ c: algencanma_c.o
 	mv algencanma_c $(BIN)/examples
 
 %_f.o: %.f90
-	$(FC) $(FFLAGS) -I$(ALGSRC)/inc -c -o $@ $<
+	$(FC) -fpic -c $(FFLAGS) -I$(ALGSRC)/inc -o $@ $<
 
 %_c.o: %.c
 	gcc -g $(CFLAGS) -I$(ALGSRC)/inc -c -o $@ $< -lm
