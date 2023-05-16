@@ -3,7 +3,7 @@ using .AlgencanInterface
 using Libdl
 
 function run_algencan()
-  lib = Libdl.dlopen("./libalgencanma.so")
+  lib = Libdl.dlopen("libalgencanma.so")
   evalf_ptr = @cfunction(evalf, Cvoid, (Ref{Int64},Ref{Vector{Float64}},Ref{Float64},Ref{Int64},Ref{MyDataPtr}))
   evalg_ptr = @cfunction(evalg, Cvoid, (Ref{Int64},Ref{Vector{Float64}},Ref{Vector{Float64}},Ref{Int64},Ref{MyDataPtr}))
   evalc_ptr = @cfunction(evalc, Cvoid, (
@@ -23,7 +23,7 @@ function run_algencan()
   ))
 
   ccall(
-    (:main_, "libalgencanma.so"), Cvoid,
+    (:main, "libalgencanma.so"), Cvoid,
     (Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid}),
     evalf_ptr, evalg_ptr, evalc_ptr, evalj_ptr, evalhl_ptr)
 
