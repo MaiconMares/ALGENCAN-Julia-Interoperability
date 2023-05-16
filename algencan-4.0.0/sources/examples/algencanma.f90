@@ -118,7 +118,7 @@ program algencama
 
 contains
 
-  subroutine main(user_evalf, user_evalg, user_evalc, user_evalj, user_evalhl)
+  subroutine init(user_evalf, user_evalg, user_evalc, user_evalj, user_evalhl)
     implicit none
 
     ! PROCEDURE ARGUMENTS
@@ -237,6 +237,8 @@ contains
 
     call cpu_time(finish)
 
+    call user_evalf(n,x,f,inform,c_loc(pdata))
+
     write(*,*)
     write(*,*) 'Number of variables                                   = ',n
     write(*,*) 'Number of equality constraints                        = ',m
@@ -309,7 +311,7 @@ contains
     end if
 
     stop
-  end subroutine main
+  end subroutine init
 
   ! *****************************************************************
   ! *****************************************************************

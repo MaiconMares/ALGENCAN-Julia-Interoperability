@@ -1,19 +1,20 @@
 module AlgencanInterface
   export MyDataPtr, evalf, evalc, evalg, evalj, evalhl
-  
+
   mutable struct MyDataPtr
     counters::NTuple{5, Cint}
 
     MyDataPtr(counters) = new((0,0,0,0,0))
   end
 
-  function evalf(n::Int64,x::Vector{Float64},f::Float64,inform::Int64,pdataptr::MyDataPtr=nothing)
+  function evalf!(n::Int64,x::Vector{Float64},f::Float64,inform::Int64,pdataptr::MyDataPtr=nothing)::nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+      println("evalf!() has been called!")
 
       f = ( x[1] + 3.0 * x[2] + x[3] )^(2.0) + 4.0 * (x[1] - x[2])^(2.0)
   end
 
-  function evalg(n::Int64,x::Vector{Float64},g::Vector{Float64},inform::Int64,pdataptr::MyDataPtr=nothing)
+  function evalg!(n::Int64,x::Vector{Float64},g::Vector{Float64},inform::Int64,pdataptr::MyDataPtr=nothing)::nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
 
       t1::Int64 = x[1] + 3.0 * x[2] + x[3]
@@ -26,17 +27,17 @@ module AlgencanInterface
   function evalc(
     n::Int64,x::Vector{Float64},m::Int64,p::Int64,c::Vector{Float64},inform::Int64,
     pdataptr::MyDataPtr=nothing
-    )
+    )::nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
 
       c[1] = 1.0 - x[1] - x[2] - x[3]
       c[2] = - 6.0 * x[2] - 4.0 * x[3] + (x[1]^3.0) + 3.0
   end
 
-  function evalj(n::Int64,x::Vector{Float64},m::Int64,p::Int64,ind::Vector{Int32},
+  function evalj!(n::Int64,x::Vector{Float64},m::Int64,p::Int64,ind::Vector{Int32},
     sorted::Vector{Int32},jsta::Vector{Int64},jlen::Vector{Int64},lim::Int64,
     jvar::Vector{Int64},jval::Vector{Float64},inform::Int64,pdataptr::MyDataPtr=nothing
-    )
+    )::nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
 
       if ( ind[1] )
@@ -76,11 +77,11 @@ module AlgencanInterface
       end
   end
 
-  function evalhl(
+  function evalhl!(
     n::Int64,x::Vector{Float64},m::Int64,p::Int64,lambda::Vector{Float64},lim::Int64,
     inclf::Int32,hlnnz::Int64,hlrow::Vector{Int64},hlcol::Vector{Int64},hlval::Vector{Float64},
     inform::Int64,pdataptr::MyDataPtr=nothing
-    )
+    )::nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
 
     hlnnz = 0
