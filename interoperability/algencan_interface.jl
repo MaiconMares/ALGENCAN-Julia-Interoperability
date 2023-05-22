@@ -1,5 +1,5 @@
 module AlgencanInterface
-  export MyDataPtr, evalf, evalc, evalg, evalj, evalhl
+  export MyDataPtr, evalf!, evalc!, evalg!, evalj!, evalhl!
 
   mutable struct MyDataPtr
     counters::NTuple{5, Cint}
@@ -24,7 +24,7 @@ module AlgencanInterface
       g[3] = 2.0 * t1
   end
 
-  function evalc(
+  function evalc!(
     n::Int64,x::Vector{Float64},m::Int64,p::Int64,c::Vector{Float64},inform::Int64,
     pdataptr::MyDataPtr=nothing
     )::nothing

@@ -16,7 +16,7 @@
 ! *****************************************************************
 ! *****************************************************************
 
-program algencama
+module algencama
 
   use bmalgencan, only: algencan
   use iso_c_binding, only: c_ptr, c_loc,c_f_pointer
@@ -146,7 +146,7 @@ contains
     allocate(x(n),lind(n),lbnd(n),uind(n),ubnd(n),stat=allocerr)
 
     if ( allocerr .ne. 0 ) then
-      write(*,*) 'Allocation error.'
+      print *, 'Allocation error.'
       stop
     end if
 
@@ -170,7 +170,7 @@ contains
     allocate(lambda(m+p),c(m+p),stat=allocerr)
 
     if ( allocerr .ne. 0 ) then
-      write(*,*) 'Allocation error.'
+      print *, 'Allocation error.'
       stop
     end if
 
@@ -239,31 +239,31 @@ contains
 
     call user_evalf(n,x,f,inform,c_loc(pdata))
 
-    write(*,*)
-    write(*,*) 'Number of variables                                   = ',n
-    write(*,*) 'Number of equality constraints                        = ',m
-    write(*,*) 'Number of inequality constraints                      = ',p
+    print *, ''
+    print *, 'Number of variables                                   = ',n
+    print *, 'Number of equality constraints                        = ',m
+    print *, 'Number of inequality constraints                      = ',p
 
-    write(*,*)
-    write(*,*) '(REPORTED BY SOLVER) istop                            = ',istop
-    write(*,*) '(REPORTED BY SOLVER) ierr                             = ',ierr
-    write(*,*) '(REPORTED BY SOLVER) f                                = ',f
-    write(*,*) '(REPORTED BY SOLVER) csupn                            = ',csupn
-    write(*,*) '(REPORTED BY SOLVER) ssupn                            = ',ssupn
-    write(*,*) '(REPORTED BY SOLVER) nlpsupn                          = ',nlpsupn
-    write(*,*) '(REPORTED BY SOLVER) bounds violation                 = ',bdsvio
-    write(*,*) '(REPORTED BY SOLVER) Number of outer iterations       = ',outiter
-    write(*,*) '(REPORTED BY SOLVER) Number of inner iterations       = ',totiter
-    write(*,*) '(REPORTED BY SOLVER) Number of Newton-KKT trials      = ',nwcalls
-    write(*,*) '(REPORTED BY SOLVER) Number of Newton-KKT iterations  = ',nwtotit
+    print *, ''
+    print *, '(REPORTED BY SOLVER) istop                            = ',istop
+    print *, '(REPORTED BY SOLVER) ierr                             = ',ierr
+    print *, '(REPORTED BY SOLVER) f                                = ',f
+    print *, '(REPORTED BY SOLVER) csupn                            = ',csupn
+    print *, '(REPORTED BY SOLVER) ssupn                            = ',ssupn
+    print *, '(REPORTED BY SOLVER) nlpsupn                          = ',nlpsupn
+    print *, '(REPORTED BY SOLVER) bounds violation                 = ',bdsvio
+    print *, '(REPORTED BY SOLVER) Number of outer iterations       = ',outiter
+    print *, '(REPORTED BY SOLVER) Number of inner iterations       = ',totiter
+    print *, '(REPORTED BY SOLVER) Number of Newton-KKT trials      = ',nwcalls
+    print *, '(REPORTED BY SOLVER) Number of Newton-KKT iterations  = ',nwtotit
 
-    write(*,*)
-    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalf         = ',pdata%counters(1)
-    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalg         = ',pdata%counters(2)
-    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalc         = ',pdata%counters(3)
-    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalj         = ',pdata%counters(4)
-    write(*,*) '(COMPUTED BY CALLER) Number of calls to evalhl        = ',pdata%counters(5)
-    write(*,*) '(COMPUTED BY CALLER) CPU time in seconds              = ',finish - start
+    print *, ''
+    print *, '(COMPUTED BY CALLER) Number of calls to evalf         = ',pdata%counters(1)
+    print *, '(COMPUTED BY CALLER) Number of calls to evalg         = ',pdata%counters(2)
+    print *, '(COMPUTED BY CALLER) Number of calls to evalc         = ',pdata%counters(3)
+    print *, '(COMPUTED BY CALLER) Number of calls to evalj         = ',pdata%counters(4)
+    print *, '(COMPUTED BY CALLER) Number of calls to evalhl        = ',pdata%counters(5)
+    print *, '(COMPUTED BY CALLER) CPU time in seconds              = ',finish - start
 
     ! *****************************************************************
     ! *****************************************************************
@@ -274,14 +274,14 @@ contains
     ! call user_evalf(n,x,f,inform,c_loc(pdata))
 
     if ( inform .ne. 0 ) then
-      write(*,*) 'error when calling evalf in the main file. '
+      print *, 'error when calling evalf in the main file. '
       stop
     end if
 
     ! call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
 
     if ( inform .ne. 0 ) then
-      write(*,*) 'error when calling evalc in the main file. '
+      print *, 'error when calling evalc in the main file. '
       stop
     end if
 
@@ -289,14 +289,14 @@ contains
 
     bdsvio = max( 0.0d0, max( maxval( lbnd(1:n) - x(1:n), lind(1:n) ), maxval( x(1:n) - ubnd(1:n), uind(1:n) ) ) )
 
-    write(*,*)
-    write(*,*) '(COMPUTED BY CALLER) f                                = ',f
-    write(*,*) '(COMPUTED BY CALLER) csupn                            = ',csupn
-    write(*,*) '(COMPUTED BY CALLER) bounds violation                 = ',bdsvio
+    print *, ''
+    print *, '(COMPUTED BY CALLER) f                                = ',f
+    print *, '(COMPUTED BY CALLER) csupn                            = ',csupn
+    print *, '(COMPUTED BY CALLER) bounds violation                 = ',bdsvio
 
-    write(*,*)
-    write(*,*) 'When a quantity appears as computed by solver and computed by caller, they must coincide.'
-    write(*,*) '(In case they do not coincide, please report it as a bug.)'
+    print *, ''
+    print *, 'When a quantity appears as computed by solver and computed by caller, they must coincide.'
+    print *, '(In case they do not coincide, please report it as a bug.)'
     ! *****************************************************************
     ! *****************************************************************
 
@@ -306,7 +306,7 @@ contains
     deallocate(lind,lbnd,uind,ubnd,x,lambda,c,stat=allocerr)
 
     if ( allocerr .ne. 0 ) then
-      write(*,*) 'Deallocation error.'
+      print *, 'Deallocation error.'
       stop
     end if
 
@@ -550,4 +550,4 @@ contains
 
   end subroutine evalhl_original
 
-end program algencama
+end module algencama
