@@ -39,13 +39,13 @@ module ProblemDefinition
     # predict, and/or to store the Jacobian of the KKT system). Thus,
     # declare it as large as possible.
 
-    hlnnzmax = typemax(Int64)
+    hlnnzmax::Int64 = typemax(Int64)
 
     # Feasibility, complementarity, and optimality tolerances
 
-    epsfeas  = 1.0e-08
-    epscompl = 1.0e-08
-    epsopt   = 1.0e-08
+    epsfeas::Float64  = 1.0e-08
+    epscompl::Float64 = 1.0e-08
+    epsopt::Float64   = 1.0e-08
 
     maxoutit::Int64 = 50
 
@@ -54,9 +54,10 @@ module ProblemDefinition
     # you must set rhoini below with a meaningful value.
 
     rhoauto::Int32 = 1
+    rhoini::Float64 = 0.0
 
     if !Bool(rhoauto)
-      rhoini::Float64 = 1.0e-08
+      rhoini = 1.0e-08
     end
 
     # scale = .true. means that you allow Algencan to automatically

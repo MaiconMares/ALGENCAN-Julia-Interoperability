@@ -22,10 +22,20 @@ function run_algencan()
     Ref{Int64},Ref{MyDataPtr}
   ))
 
+  x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
+          rhoauto,rhoini,scale,extallowed,corrin = problem_params()
+
   ccall(
     (:__algencanma_MOD_init, "libalgencanma.so"), Cvoid,
-    (Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid}),
-    evalf_ptr, evalg_ptr, evalc_ptr, evalj_ptr, evalhl_ptr)
+    (Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid},
+    Ptr{Vector{Float64}}, Ref{Int64}, Ptr{Vector{Int32}},
+    Ptr{Vector{Float64}}, Ptr{Vector{Int32}}, Ptr{Vector{Float64}},
+    Ref{Int64}, Ref{Int64}, Ptr{Vector{Float64}}, Ref{Int64}, Ref{Int64},
+    Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Int32}, Ref{Float64},
+    Ref{Int32}, Ref{Int32}, Ref{Int32}),
+    evalf_ptr, evalg_ptr, evalc_ptr, evalj_ptr, evalhl_ptr,
+    x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,
+    epscompl,epsopt,rhoauto,rhoini,scale,extallowed,corrin)
 
   Libdl.dlclose(lib)
 end
