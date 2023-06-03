@@ -16,7 +16,7 @@
 ! *****************************************************************
 ! *****************************************************************
 
-module algencama
+module algencanma
 
   use bmalgencan, only: algencan
   use iso_c_binding, only: c_ptr, c_loc,c_f_pointer
@@ -118,7 +118,8 @@ module algencama
 
 contains
 
-  subroutine init(user_evalf, user_evalg, user_evalc, user_evalj, user_evalhl)
+  subroutine init(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl,x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,rhoauto,rhoini,scale,extallowed,corrin)
+
     implicit none
 
     ! PROCEDURE ARGUMENTS
@@ -128,105 +129,31 @@ contains
     procedure(evalj) :: user_evalj
     procedure(evalhl) :: user_evalhl
 
+    ! PARAMETERS
+    real(kind=8), intent(inout) :: lbnd(:),ubnd(:),lambda(:),x(:), epsfeas,epscompl,epsopt,rhoini
+    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(:),uind(:)
+    integer, intent(in) :: n, m, p
+    integer, intent(inout) :: hlnnzmax, jnnzmax
 
     ! LOCAL SCALARS
-    logical :: corrin,extallowed,rhoauto,scale
-    integer :: allocerr,hlnnzmax,ierr,inform,istop,jnnzmax,m,maxoutit,n,nwcalls,nwtotit,outiter,p,totiter
-    real(kind=8) :: bdsvio,csupn,epsfeas,epscompl,epsopt,f,finish,nlpsupn,rhoini,ssupn,start
+
+    integer :: allocerr,ierr,inform,istop,maxoutit,nwcalls,nwtotit,outiter,totiter
+    real(kind=8) :: bdsvio,csupn,finish,nlpsupn,ssupn,start,f
     type(pdata_type), target :: pdata
 
-    ! LOCAL ARRAYS
-    logical, allocatable :: lind(:),uind(:)
-    real(kind=8), allocatable :: c(:),lbnd(:),ubnd(:),lambda(:),x(:)
-
-    ! Number of variables
-
-    n = 3
-
-    allocate(x(n),lind(n),lbnd(n),uind(n),ubnd(n),stat=allocerr)
+    real(kind=8), allocatable :: c(:)
 
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
       stop
     end if
 
-    ! Initial guess and bound constraints
-
-    x(1) = 0.1d0
-    x(2) = 0.7d0
-    x(3) = 0.2d0
-
-    lind(1:n) = .true.
-    lbnd(1:n) = 0.0d0
-
-    uind(1:n) = .false.
-    ubnd(1:n) = 0.0d0
-
-    ! Number equality (m) and inequality (p) constraints.
-
-    m = 1
-    p = 1
-
-    allocate(lambda(m+p),c(m+p),stat=allocerr)
+    allocate(c(m+p),stat=allocerr)
 
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
       stop
     end if
-
-    ! Initial guess for the Lagrange multipliers
-
-    lambda(1:m+p) = 0.0d0
-
-    ! Number of entries in the Jacobian of the constraints
-
-    jnnzmax = 2*n
-
-    ! This should be the number of entries in the Hessian of the
-    ! Lagrangian. But, in fact, some extra space is need (to store the
-    ! Hessian of the Augmented Lagrangian, whose size is hard to
-    ! predict, and/or to store the Jacobian of the KKT system). Thus,
-    ! declare it as large as possible.
-
-    hlnnzmax = huge( 1 ) / 2
-
-    ! Feasibility, complementarity, and optimality tolerances
-
-    epsfeas  = 1.0d-08
-    epscompl = 1.0d-08
-    epsopt   = 1.0d-08
-
-    ! Maximum number of outer iterations
-
-    maxoutit = 50
-
-    ! rhoauto means that Algencan will automatically set the initial
-    ! value of the penalty parameter. If you set rhoauto = .false. then
-    ! you must set rhoini below with a meaningful value.
-    rhoauto = .true.
-
-    if ( .not. rhoauto ) then
-      rhoini = 1.0d-08
-    end if
-
-    ! scale = .true. means that you allow Algencan to automatically
-    ! scale the constraints. In any case, the feasibility tolerance
-    ! (epsfeas) will be always satisfied by the UNSCALED original
-    ! constraints.
-    scale = .false.
-
-    ! extallowed = .true. means that you allow Gencan (the active-set
-    ! method used by Algencan to solve the bound-constrained
-    ! subproblems) to perform extrapolations. This strategy may use
-    ! extra evaluations of the objective function and the constraints
-    ! per iterations; but it uses to provide overal savings. You should
-    ! test both choices for the problem at hand.
-    extallowed = .true.
-
-    ! corrin = .true. means that you allow the inertia of the
-    ! Jacobian of the KKT system to be corrected during the acceleration
-    ! process. You should test both choices for the problem at hand.
-    corrin = .false.
 
     call cpu_time(start)
 
@@ -237,7 +164,7 @@ contains
 
     call cpu_time(finish)
 
-    call user_evalf(n,x,f,inform,c_loc(pdata))
+    call user_evalf(n,x,f,inform)
 
     print *, ''
     print *, 'Number of variables                                   = ',n
@@ -303,7 +230,7 @@ contains
     write (*,*) "     x = ", x
     write (*,*) "lambda = ", lambda
 
-    deallocate(lind,lbnd,uind,ubnd,x,lambda,c,stat=allocerr)
+    deallocate(c,stat=allocerr)
 
     if ( allocerr .ne. 0 ) then
       print *, 'Deallocation error.'
@@ -550,4 +477,4 @@ contains
 
   end subroutine evalhl_original
 
-end module algencama
+end module algencanma
