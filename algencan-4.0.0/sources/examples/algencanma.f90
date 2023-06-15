@@ -118,7 +118,9 @@ module algencanma
 
 contains
 
-  subroutine init(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl,x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,rhoauto,rhoini,scale,extallowed,corrin)
+  subroutine init(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl, &
+    x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,  &
+    epsopt,rhoauto,rhoini,scale,extallowed,corrin)
 
     implicit none
 
