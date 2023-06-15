@@ -1,22 +1,24 @@
 include("./problem_definition.jl")
 using .ProblemDefinition
 using Libdl
+curr_dir = Vector{String}(["./"])
+lib_path = Libdl.find_library("libalgencanma.so", curr_dir)
+lib = Libdl.dlopen(lib_path)
 
 function run_algencan()
-  lib = Libdl.dlopen("libalgencanma.so")
-  evalf_ptr = @cfunction(evalf!, Nothing, (Ref{Int64},Ptr{Vector{Float64}},Ref{Float64},Ref{Int64},Ref{MyDataPtr}))
-  evalg_ptr = @cfunction(evalg!, Nothing, (Ref{Int64},Ptr{Vector{Float64}},Ptr{Vector{Float64}},Ref{Int64},Ref{MyDataPtr}))
-  evalc_ptr = @cfunction(evalc!, Nothing, (
+  evalf_ptr = @cfunction(ProblemDefinition.evalf!, Nothing, (Ref{Int64},Ptr{Vector{Float64}},Ref{Float64},Ref{Int64},Ref{MyDataPtr}))
+  evalg_ptr = @cfunction(ProblemDefinition.evalg!, Nothing, (Ref{Int64},Ptr{Vector{Float64}},Ptr{Vector{Float64}},Ref{Int64},Ref{MyDataPtr}))
+  evalc_ptr = @cfunction(ProblemDefinition.evalc!, Nothing, (
     Ref{Int64},Ptr{Vector{Float64}},Ref{Int64},Ref{Int64},Ptr{Vector{Float64}},Ref{Int64},Ref{MyDataPtr}
   ))
 
-  evalj_ptr = @cfunction(evalj!, Nothing, (
+  evalj_ptr = @cfunction(ProblemDefinition.evalj!, Nothing, (
     Ref{Int64},Ptr{Vector{Float64}},Ref{Int64},Ref{Int64},Ref{Vector{Int32}},
     Ref{Vector{Int32}},Ref{Vector{Int64}},Ref{Vector{Int64}},Ref{Int64},
     Ref{Vector{Int64}},Ptr{Vector{Float64}},Ref{Int64},Ref{MyDataPtr}
   ))
 
-  evalhl_ptr = @cfunction(evalhl!, Nothing, (
+  evalhl_ptr = @cfunction(ProblemDefinition.evalhl!, Nothing, (
     Ref{Int64},Ptr{Vector{Float64}},Ref{Int64},Ref{Int64},Ptr{Vector{Float64}},Ref{Int64},
     Ref{Int32},Ref{Int64},Ref{Vector{Int64}},Ref{Vector{Int64}},Ptr{Vector{Float64}},
     Ref{Int64},Ref{MyDataPtr}
@@ -25,17 +27,18 @@ function run_algencan()
   x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
           rhoauto,rhoini,scale,extallowed,corrin = problem_params()
 
-  ccall(
-    (:__algencanma_MOD_init, "libalgencanma.so"), Cvoid,
-    (Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid}, Ptr{Cvoid},Ptr{Cvoid},
-    Ptr{Vector{Float64}}, Ref{Int64}, Ptr{Vector{Int32}},
-    Ptr{Vector{Float64}}, Ptr{Vector{Int32}}, Ptr{Vector{Float64}},
-    Ref{Int64}, Ref{Int64}, Ptr{Vector{Float64}}, Ref{Int64}, Ref{Int64},
-    Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Int32}, Ref{Float64},
-    Ref{Int32}, Ref{Int32}, Ref{Int32}),
-    evalf_ptr, evalg_ptr, evalc_ptr, evalj_ptr, evalhl_ptr,
-    x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,
-    epscompl,epsopt,rhoauto,rhoini,scale,extallowed,corrin)
+  
+  @ccall lib_path.__algencanma_MOD_init(
+    evalf_ptr::Ptr{Cvoid}, evalg_ptr::Ptr{Cvoid}, 
+    evalc_ptr::Ptr{Cvoid}, evalj_ptr::Ptr{Cvoid}, 
+    evalhl_ptr::Ptr{Cvoid}, x::Ptr{Vector{Float64}}, 
+    n::Ref{Int64}, lind::Ptr{Vector{Int32}}, lbnd::Ptr{Vector{Float64}}, 
+    uind::Ptr{Vector{Int32}}, ubnd::Ptr{Vector{Float64}},
+    m::Ref{Int64}, p::Ref{Int64}, lambda::Ptr{Vector{Float64}}, 
+    jnnzmax::Ref{Float64}, hlnnzmax::Ref{Float64}, epsfeas::Ref{Float64}, 
+    epscompl::Ref{Float64},epsopt::Ref{Float64}, rhoauto::Ref{Int32}, 
+    rhoini::Ref{Float64},scale::Ref{Int32},extallowed::Ref{Int32},corrin::Ref{Int32}
+    )::Cvoid
 
   Libdl.dlclose(lib)
 end
