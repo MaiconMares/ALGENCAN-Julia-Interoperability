@@ -99,11 +99,11 @@ module algencanma
 
     end subroutine evalj
 
-    subroutine evalhl(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,pdataptr)
+    subroutine evalhl(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,hlnnzmax,pdataptr)
       import c_ptr
 
       logical, intent(in) :: inclf
-      integer, intent(in) :: m,n,lim,p
+      integer, intent(in) :: m,n,lim,p,hlnnzmax
       integer, intent(out) :: hlnnz
       integer, intent(inout) :: inform
       type(c_ptr), optional, intent(in) :: pdataptr
@@ -132,9 +132,9 @@ contains
     procedure(evalhl) :: user_evalhl
 
     ! PARAMETERS
-    real(kind=8), intent(inout) :: lbnd(:),ubnd(:),lambda(:),x(:), epsfeas,epscompl,epsopt,rhoini
-    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(:),uind(:)
     integer, intent(in) :: n, m, p
+    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(n),uind(n)
+    real(kind=8), intent(inout) :: lbnd(n),ubnd(n),lambda(m+p),x(n), epsfeas,epscompl,epsopt,rhoini
     integer, intent(inout) :: hlnnzmax, jnnzmax
 
     ! LOCAL SCALARS

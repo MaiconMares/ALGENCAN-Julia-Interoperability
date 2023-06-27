@@ -83,84 +83,104 @@ module ProblemDefinition
           rhoauto,rhoini,scale,extallowed,corrin
   end
 
-  function evalf!(n::Int64,x::Vector{Float64},f::Float64,inform::Int64,pdataptr::MyDataPtr=nothing)::Nothing
+  function evalf!(n::Int64,x,f::Float64,inform::Int64)::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
-      println("evalf!() has been called!")
+      x_wrap = unsafe_wrap(Array, x, n)
 
-      f = ( x[1] + 3.0 * x[2] + x[3] )^(2.0) + 4.0 * (x[1] - x[2])^(2.0)
-
+      println(x_wrap)
       println(f)
+
+      f = ( x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3] )^(2.0) + 4.0 * (x_wrap[1] - x_wrap[2])^(2.0)
+
+      nothing
   end
 
-  function evalg!(n::Int64,x::Vector{Float64},g::Vector{Float64},inform::Int64,pdataptr::MyDataPtr=nothing)::Nothing
+  function evalg!(n::Int64,x,g,inform::Int64,pdataptr::MyDataPtr=nothing)::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+      x_wrap = unsafe_wrap(Array, x, n)
+      g_wrap = unsafe_wrap(Array, g, n)
 
-      t1::Int64 = x[1] + 3.0 * x[2] + x[3]
-      t2::Int64 = x[1] - x[2]
-      g[1] = 2.0 * t1 + 8.0 * t2
-      g[2] = 6.0 * t1 - 8.0 * t2
-      g[3] = 2.0 * t1
+
+      t1::Int64 = x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3]
+      t2::Int64 = x_wrap[1] - x_wrap[2]
+      g_wrap[1] = 2.0 * t1 + 8.0 * t2
+      g_wrap[2] = 6.0 * t1 - 8.0 * t2
+      g_wrap[3] = 2.0 * t1
   end
 
   function evalc!(
-    n::Int64,x::Vector{Float64},m::Int64,p::Int64,c::Vector{Float64},inform::Int64,
+    n::Int64,x,m::Int64,p::Int64,c,inform::Int64,
     pdataptr::MyDataPtr=nothing
     )::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+      x_wrap = unsafe_wrap(Array, x, n)
+      c_wrap = unsafe_wrap(Array, c, m+p)
 
-      c[1] = 1.0 - x[1] - x[2] - x[3]
-      c[2] = - 6.0 * x[2] - 4.0 * x[3] + (x[1]^3.0) + 3.0
+      c_wrap[1] = 1.0 - x_wrap[1] - x_wrap[2] - x_wrap[3]
+      c_wrap[2] = - 6.0 * x_wrap[2] - 4.0 * x_wrap[3] + (x_wrap[1]^3.0) + 3.0
   end
 
-  function evalj!(n::Int64,x::Vector{Float64},m::Int64,p::Int64,ind::Vector{Int32},
-    sorted::Vector{Int32},jsta::Vector{Int64},jlen::Vector{Int64},lim::Int64,
-    jvar::Vector{Int64},jval::Vector{Float64},inform::Int64,pdataptr::MyDataPtr=nothing
+  function evalj!(n::Int64,x,m::Int64,p::Int64,ind,
+    sorted,jsta,jlen,lim::Int64,
+    jvar,jval,inform::Int64,pdataptr::MyDataPtr=nothing
     )::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+      x_wrap = unsafe_wrap(Array, x, n)
+      ind_wrap = unsafe_wrap(Array, ind, m+p)
+      sorted_wrap = unsafe_wrap(Array, sorted, m+p)
+      jsta_wrap = unsafe_wrap(Array, jsta, m+p)
+      jlen_wrap = unsafe_wrap(Array, jlen, m+p)
+      jvar_wrap = unsafe_wrap(Array, jvar, lim)
+      jval_wrap = unsafe_wrap(Array, jval, m+p)
 
-      if ( ind[1] )
+      if ( ind_wrap[1] )
         if ( lim < n )
             inform = -94
             return
         end
 
-        jsta[1] = 1
-        jlen[1] = n
+        jsta_wrap[1] = 1
+        jlen_wrap[1] = n
         nnz1 = nnz1 + 1
 
-        jvar = [i for i in 1:n]
-        jval[1:n] .= -1.0
+        jvar_wrap = [i for i in 1:n]
+        jval_wrap[1:n] .= -1.0
 
         sorted[1] = 1
       end
 
-      if ( ind[2] )
+      if ( ind_wrap[2] )
         if ( lim < n )
             inform = -94
             return
         end
 
-        push!(jsta, length(jval) + 1)
-        push!(jlen, n)
+        push!(jsta_wrap, length(jval_wrap) + 1)
+        push!(jlen_wrap, n)
 
         for i in 1:n
-          push!(jvar, i)
+          push!(jvar_wrap, i)
         end
 
-        push!(jval, - 3.0 * (x[1]^2.0))
-        push!(jval, 6.0)
-        push!(jval, 4.0)
+        push!(jval_wrap, - 3.0 * (x_wrap[1]^2.0))
+        push!(jval_wrap, 6.0)
+        push!(jval_wrap, 4.0)
 
-        sorted[2] = 1
+        sorted_wrap[2] = 1
       end
   end
 
   function evalhl!(
-    n::Int64,x::Vector{Float64},m::Int64,p::Int64,lambda::Vector{Float64},lim::Int64,
-    inclf::Int32,hlnnz::Int64,hlrow::Vector{Int64},hlcol::Vector{Int64},hlval::Vector{Float64},
-    inform::Int64,pdataptr::MyDataPtr=nothing
+    n::Int64,x,m::Int64,p::Int64,lambda,lim::Int64,
+    inclf::Int32,hlnnz::Int64,hlrow,hlcol,hlval,
+    inform::Int64,hlnnzmax::Int64,pdataptr::MyDataPtr=nothing
     )::Nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+    x_wrap = unsafe_wrap(Array, x, n)
+    hlrow_wrap = unsafe_wrap(Array, hlrow, hlnnzmax)
+    hlcol_wrap = unsafe_wrap(Array, hlcol, hlnnzmax)
+    hlval_wrap = unsafe_wrap(Array, hlval, hlnnzmax)
+    lambda_wrap = unsafe_wrap(Array, lambda, m+p)
 
     hlnnz = 0
 
