@@ -15,6 +15,11 @@ module ProblemDefinition
 
     x = Vector{Float64}([0.1,0.7,0.2])
 
+    # Stores the objective function
+    f::Float64 = 0.0
+
+    g = Vector{Float64}(zeros(n))
+
     lind = Vector{Int32}(ones(n))
     lbnd = Vector{Float64}(zeros(n))
 
@@ -79,38 +84,44 @@ module ProblemDefinition
     # process. You should test both choices for the problem at hand.
     corrin::Int32 = 0
 
-    return x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
-          rhoauto,rhoini,scale,extallowed,corrin
+    inform::Int64 = 0
+
+    return x,n,f,g,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
+          rhoauto,rhoini,scale,extallowed,corrin,inform
   end
 
-  function evalf!(n::Int64,x,f::Float64,inform::Int64)::Nothing
+  function evalf!(n::Int64,x,f::Ptr{Float64},inform::Ptr{Int64})::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
 
-      println(x_wrap)
+      println("evalf! called")
+
+      temp = ( x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3] )^(2.0) + 4.0 * (x_wrap[1] - x_wrap[2])^(2.0)
+      unsafe_store!(f, temp)
+
       println(f)
-
-      f = ( x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3] )^(2.0) + 4.0 * (x_wrap[1] - x_wrap[2])^(2.0)
-
       nothing
   end
 
-  function evalg!(n::Int64,x,g,inform::Int64,pdataptr::MyDataPtr=nothing)::Nothing
+  function evalg!(n::Int64,x,g,inform::Int64)::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
       g_wrap = unsafe_wrap(Array, g, n)
 
-
-      t1::Int64 = x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3]
-      t2::Int64 = x_wrap[1] - x_wrap[2]
+      t1::Float64 = x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3]
+      t2::Float64 = x_wrap[1] - x_wrap[2]
       g_wrap[1] = 2.0 * t1 + 8.0 * t2
       g_wrap[2] = 6.0 * t1 - 8.0 * t2
       g_wrap[3] = 2.0 * t1
+
+      println(x_wrap)
+      println(g_wrap)
+
+      nothing
   end
 
   function evalc!(
-    n::Int64,x,m::Int64,p::Int64,c,inform::Int64,
-    pdataptr::MyDataPtr=nothing
+    n::Int64,x,m::Int64,p::Int64,c,inform::Ptr{Int64}
     )::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
@@ -118,6 +129,11 @@ module ProblemDefinition
 
       c_wrap[1] = 1.0 - x_wrap[1] - x_wrap[2] - x_wrap[3]
       c_wrap[2] = - 6.0 * x_wrap[2] - 4.0 * x_wrap[3] + (x_wrap[1]^3.0) + 3.0
+
+      println(x_wrap)
+      println(c_wrap)
+
+      nothing
   end
 
   function evalj!(n::Int64,x,m::Int64,p::Int64,ind,
@@ -168,6 +184,8 @@ module ProblemDefinition
 
         sorted_wrap[2] = 1
       end
+
+      nothing
   end
 
   function evalhl!(
@@ -216,4 +234,6 @@ module ProblemDefinition
     push!(hlcol, 1)
     push!(hlval, lambda[2] * ( - 6.0 * x[1] ))
   end
+
+  nothing
 end
