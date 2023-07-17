@@ -42,7 +42,7 @@ module algencanma
       ! SCALAR ARGUMENTS
       integer, intent(in) :: n
       integer, intent(inout) :: inform
-      real(kind=8), intent(out) :: f
+      real(kind=8), intent(inout) :: f
       type(c_ptr), optional, intent(in) :: pdataptr
 
       ! ARRAY ARGUMENTS
@@ -119,8 +119,8 @@ module algencanma
 contains
 
   subroutine init(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl, &
-    x,n,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,  &
-    epsopt,rhoauto,rhoini,scale,extallowed,corrin)
+    x,n,f,g,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,  &
+    epsopt,rhoauto,rhoini,scale,extallowed,corrin,inform)
 
     implicit none
 
@@ -134,16 +134,21 @@ contains
     ! PARAMETERS
     integer, intent(in) :: n, m, p
     logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(n),uind(n)
-    real(kind=8), intent(inout) :: lbnd(n),ubnd(n),lambda(m+p),x(n), epsfeas,epscompl,epsopt,rhoini
+    real(kind=8), intent(inout) :: lbnd(n),ubnd(n),lambda(m+p),x(n), epsfeas,epscompl,epsopt,rhoini,g(n)
     integer, intent(inout) :: hlnnzmax, jnnzmax
+    real(kind=8), target, intent(inout) :: f
+    integer, target, intent(inout) :: inform
+    type(c_ptr) :: f_ptr
 
     ! LOCAL SCALARS
 
-    integer :: allocerr,ierr,inform,istop,maxoutit,nwcalls,nwtotit,outiter,totiter
-    real(kind=8) :: bdsvio,csupn,finish,nlpsupn,ssupn,start,f
+    integer :: allocerr,ierr,istop,maxoutit,nwcalls,nwtotit,outiter,totiter
+    real(kind=8) :: bdsvio,csupn,finish,nlpsupn,ssupn,start
     type(pdata_type), target :: pdata
 
     real(kind=8), allocatable :: c(:)
+
+    ! f_ptr = c_loc(f)
 
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
@@ -168,6 +173,12 @@ contains
 
     call user_evalf(n,x,f,inform)
 
+    call user_evalg(n, x, g, inform)
+
+    call user_evalc(n,x,m,p,c,inform)
+
+    print *, 'g = ',g(:)
+    print *, 'c = ',c(:)
     print *, ''
     print *, 'Number of variables                                   = ',n
     print *, 'Number of equality constraints                        = ',m
