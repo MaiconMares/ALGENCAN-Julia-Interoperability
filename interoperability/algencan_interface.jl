@@ -3,7 +3,9 @@ using .ProblemDefinition
 using Libdl
 curr_dir = Vector{String}(["./"])
 lib_path = Libdl.find_library("libalgencanma.so", curr_dir)
-lib = Libdl.dlopen(lib_path)
+#bmalgencan_path = Libdl.find_library("libbmalgencan.so", curr_dir)
+#bmalgencanlib = Libdl.dlopen(bmalgencan_path, RTLD_NOW|RTLD_GLOBAL)
+lib = Libdl.dlopen(lib_path, RTLD_NOW|RTLD_GLOBAL)
 
 function run_algencan()
   evalf_ptr = @cfunction(ProblemDefinition.evalf!, Nothing, (Ref{Int64},Ptr{Float64},Ptr{Float64},Ptr{Int64}))
@@ -13,19 +15,19 @@ function run_algencan()
   ))
 
   evalj_ptr = @cfunction(ProblemDefinition.evalj!, Nothing, (
-    Ref{Int64},Ptr{Float64},Ref{Int64},Ref{Int64},Ref{Vector{Int32}},
-    Ref{Vector{Int32}},Ref{Vector{Int64}},Ref{Vector{Int64}},Ref{Int64},
-    Ref{Vector{Int64}},Ptr{Float64},Ref{Int64},Ref{MyDataPtr}
+    Ref{Int64},Ptr{Float64},Ref{Int64},Ref{Int64},Ptr{Int32},
+    Ptr{Int32},Ptr{Int64},Ptr{Int64},Ref{Int64},
+    Ptr{Int64},Ptr{Float64},Ref{Int64},Ref{MyDataPtr}
   ))
 
   evalhl_ptr = @cfunction(ProblemDefinition.evalhl!, Nothing, (
     Ref{Int64},Ptr{Float64},Ref{Int64},Ref{Int64},Ptr{Float64},Ref{Int64},
-    Ref{Int32},Ref{Int64},Ref{Vector{Int64}},Ref{Vector{Int64}},Ptr{Float64},
-    Ref{Int64},Ref{Int64},Ref{MyDataPtr}
+    Ref{Int32},Ref{Int64},Ptr{Int64},Ptr{Int64},Ptr{Float64},
+    Ref{Int64},Ref{MyDataPtr}
   ))
 
   x,n,f,g,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
-          rhoauto,rhoini,scale,extallowed,corrin,inform = problem_params()
+          rhoauto,rhoini,scale,extallowed,corrin,inform,ind = problem_params()
 
 
   @ccall lib_path.__algencanma_MOD_init(
@@ -35,10 +37,10 @@ function run_algencan()
     n::Ref{Int64},f::Ref{Float64},g::Ptr{Float64}, lind::Ptr{Vector{Int32}}, lbnd::Ptr{Float64},
     uind::Ptr{Vector{Int32}}, ubnd::Ptr{Float64},
     m::Ref{Int64}, p::Ref{Int64}, lambda::Ptr{Float64},
-    jnnzmax::Ref{Float64}, hlnnzmax::Ref{Float64}, epsfeas::Ref{Float64},
+    jnnzmax::Ref{Float64}, hlnnzmax::Ref{Int64}, epsfeas::Ref{Float64},
     epscompl::Ref{Float64},epsopt::Ref{Float64}, rhoauto::Ref{Int32},
     rhoini::Ref{Float64},scale::Ref{Int32},extallowed::Ref{Int32},corrin::Ref{Int32},
-    inform::Ref{Int64}
+    inform::Ref{Int64},ind::Ptr{Int32}
     )::Cvoid
 
   Libdl.dlclose(lib)

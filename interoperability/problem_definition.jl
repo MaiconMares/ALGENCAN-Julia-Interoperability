@@ -30,6 +30,9 @@ module ProblemDefinition
     m::Int64 = 1
     p::Int64 = 1
 
+    # Defines which constraints should be included in jacobian matrix
+    ind = Vector{Int32}(ones(m+p))
+
     # Initial guess for the Lagrange multipliers
 
     lambda = Vector{Float64}(zeros(m+p))
@@ -87,19 +90,16 @@ module ProblemDefinition
     inform::Int64 = 0
 
     return x,n,f,g,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
-          rhoauto,rhoini,scale,extallowed,corrin,inform
+          rhoauto,rhoini,scale,extallowed,corrin,inform,ind
   end
 
   function evalf!(n::Int64,x,f::Ptr{Float64},inform::Ptr{Int64})::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
 
-      println("evalf! called")
-
       temp = ( x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3] )^(2.0) + 4.0 * (x_wrap[1] - x_wrap[2])^(2.0)
       unsafe_store!(f, temp)
 
-      println(f)
       nothing
   end
 
@@ -114,9 +114,6 @@ module ProblemDefinition
       g_wrap[2] = 6.0 * t1 - 8.0 * t2
       g_wrap[3] = 2.0 * t1
 
-      println(x_wrap)
-      println(g_wrap)
-
       nothing
   end
 
@@ -129,9 +126,6 @@ module ProblemDefinition
 
       c_wrap[1] = 1.0 - x_wrap[1] - x_wrap[2] - x_wrap[3]
       c_wrap[2] = - 6.0 * x_wrap[2] - 4.0 * x_wrap[3] + (x_wrap[1]^3.0) + 3.0
-
-      println(x_wrap)
-      println(c_wrap)
 
       nothing
   end
@@ -147,9 +141,11 @@ module ProblemDefinition
       jsta_wrap = unsafe_wrap(Array, jsta, m+p)
       jlen_wrap = unsafe_wrap(Array, jlen, m+p)
       jvar_wrap = unsafe_wrap(Array, jvar, lim)
-      jval_wrap = unsafe_wrap(Array, jval, m+p)
+      jval_wrap = unsafe_wrap(Array, jval, lim)
 
-      if ( ind_wrap[1] )
+      nnz1 = 0
+      nnz2 = 0
+      if (Bool(ind_wrap[1]))
         if ( lim < n )
             inform = -94
             return
@@ -159,28 +155,32 @@ module ProblemDefinition
         jlen_wrap[1] = n
         nnz1 = nnz1 + 1
 
-        jvar_wrap = [i for i in 1:n]
-        jval_wrap[1:n] .= -1.0
+        for i in 1:n
+          jvar_wrap[i] = i
+        end
 
-        sorted[1] = 1
+        jval_wrap[1:n] .= -1.0
+        nnz2 = nnz2 + n
+
+        sorted_wrap[1] = 1
       end
 
-      if ( ind_wrap[2] )
+      if (Bool(ind_wrap[2]))
         if ( lim < n )
-            inform = -94
-            return
+          inform = -94
+          return
         end
 
-        push!(jsta_wrap, length(jval_wrap) + 1)
-        push!(jlen_wrap, n)
+        jsta_wrap[nnz1+1] = nnz2 + 1
+        jlen_wrap[nnz1+1] = n
 
         for i in 1:n
-          push!(jvar_wrap, i)
+          jvar_wrap[nnz2 + i] = i
         end
-
-        push!(jval_wrap, - 3.0 * (x_wrap[1]^2.0))
-        push!(jval_wrap, 6.0)
-        push!(jval_wrap, 4.0)
+        
+        jval_wrap[nnz2+1] = - 3.0 * (x_wrap[1]^2.0)
+        jval_wrap[nnz2+2] = 6.0
+        jval_wrap[nnz2+3] = 4.0
 
         sorted_wrap[2] = 1
       end
@@ -191,8 +191,9 @@ module ProblemDefinition
   function evalhl!(
     n::Int64,x,m::Int64,p::Int64,lambda,lim::Int64,
     inclf::Int32,hlnnz::Int64,hlrow,hlcol,hlval,
-    inform::Int64,hlnnzmax::Int64,pdataptr::MyDataPtr=nothing
+    inform::Int64,pdataptr::MyDataPtr=nothing
     )::Nothing
+    hlnnzmax::Int64 = typemax(Int64)
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap = unsafe_wrap(Array, x, n)
     hlrow_wrap = unsafe_wrap(Array, hlrow, hlnnzmax)
@@ -204,17 +205,34 @@ module ProblemDefinition
 
     # If .not. inclf then the Hessian of the objective function must not be included
 
-    if ( inclf )
+    if (Bool(inclf))
       if ( hlnnz + 2 > lim )
         inform = -95
         return
       end
+      
+      hlrow_wrap[1]= 1
+      hlrow_wrap[2]= 2
+      hlrow_wrap[3]= 2
+      hlrow_wrap[4]= 3
+      hlrow_wrap[5]= 3
+      hlrow_wrap[6]= 3
+
+      hlcol_wrap[1]= 1
+      hlcol_wrap[2]= 1
+      hlcol_wrap[3]= 2
+      hlcol_wrap[4]= 1
+      hlcol_wrap[5]= 2
+      hlcol_wrap[6]= 3
+
+      hlval_wrap[1]= 10.0
+      hlval_wrap[2]= -2.0
+      hlval_wrap[3]= 26.0
+      hlval_wrap[4]= 2.0
+      hlval_wrap[5]= 6.0
+      hlval_wrap[6]= 2.0
 
       hlnnz = 6
-
-      hlrow = [      1,      2,      2,     3,     3,     3 ]
-      hlcol = [      1,      1,      2,     1,     2,     3 ]
-      hlval = [ 10.0, -2.0, 26.0, 2.0, 6.0, 2.0 ]
 
     end
 
@@ -228,12 +246,10 @@ module ProblemDefinition
       return
     end
 
-    hlnnz = hlnnz + 1
+    hlrow_wrap[hlnnz+1] = 1
+    hlcol_wrap[hlnnz+1] = 1
+    hlval_wrap[hlnnz+1] = lambda_wrap[2] * ( - 6.0 * x_wrap[1] )
 
-    push!(hlrow, 1)
-    push!(hlcol, 1)
-    push!(hlval, lambda[2] * ( - 6.0 * x[1] ))
+    nothing
   end
-
-  nothing
 end
