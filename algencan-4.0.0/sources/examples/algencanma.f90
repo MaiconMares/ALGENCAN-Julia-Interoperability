@@ -42,7 +42,7 @@ module algencanma
       ! SCALAR ARGUMENTS
       integer, intent(in) :: n
       integer, intent(inout) :: inform
-      real(kind=8), intent(inout) :: f
+      real(kind=8), intent(out) :: f
       type(c_ptr), optional, intent(in) :: pdataptr
 
       ! ARRAY ARGUMENTS
@@ -99,11 +99,11 @@ module algencanma
 
     end subroutine evalj
 
-    subroutine evalhl(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,hlnnzmax,pdataptr)
+    subroutine evalhl(n,x,m,p,lambda,lim,inclf,hlnnz,hlrow,hlcol,hlval,inform,pdataptr)
       import c_ptr
 
       logical, intent(in) :: inclf
-      integer, intent(in) :: m,n,lim,p,hlnnzmax
+      integer, intent(in) :: m,n,lim,p
       integer, intent(out) :: hlnnz
       integer, intent(inout) :: inform
       type(c_ptr), optional, intent(in) :: pdataptr
@@ -120,7 +120,7 @@ contains
 
   subroutine init(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl, &
     x,n,f,g,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,  &
-    epsopt,rhoauto,rhoini,scale,extallowed,corrin,inform)
+    epsopt,rhoauto,rhoini,scale,extallowed,corrin,inform,ind)
 
     implicit none
 
@@ -133,41 +133,48 @@ contains
 
     ! PARAMETERS
     integer, intent(in) :: n, m, p
-    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(n),uind(n)
+    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(n),uind(n), ind(m+p)
     real(kind=8), intent(inout) :: lbnd(n),ubnd(n),lambda(m+p),x(n), epsfeas,epscompl,epsopt,rhoini,g(n)
     integer, intent(inout) :: hlnnzmax, jnnzmax
     real(kind=8), target, intent(inout) :: f
     integer, target, intent(inout) :: inform
-    type(c_ptr) :: f_ptr
+    integer :: jsta(m+p),jlen(m+p),jvar(n)
+    real(kind=8) :: jval(n)
 
     ! LOCAL SCALARS
-
-    integer :: allocerr,ierr,istop,maxoutit,nwcalls,nwtotit,outiter,totiter
+    ! Remember to remove: hlnnz
+    integer :: allocerr,ierr,istop,maxoutit,nwcalls,nwtotit,outiter,totiter,hlnnz
     real(kind=8) :: bdsvio,csupn,finish,nlpsupn,ssupn,start
     type(pdata_type), target :: pdata
+    logical :: sorted(m+p)
 
+    integer :: hlrow(hlnnzmax),hlcol(hlnnzmax)
+    real(kind=8) :: hlval(hlnnzmax)
+    
     real(kind=8), allocatable :: c(:)
 
-    ! f_ptr = c_loc(f)
-
+    hlnnz = 0
+    
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
       stop
     end if
-
+    
     allocate(c(m+p),stat=allocerr)
-
+    
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
       stop
     end if
 
+    sorted(:) = .true.
+    
     call cpu_time(start)
-
-    !call algencan(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl,jnnzmax,hlnnzmax, &
-    !    n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
-    !    scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
-    !    outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
+    
+    call algencan(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl,jnnzmax,hlnnzmax, &
+        n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
+        scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
+        outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
 
     call cpu_time(finish)
 
@@ -176,6 +183,15 @@ contains
     call user_evalg(n, x, g, inform)
 
     call user_evalc(n,x,m,p,c,inform)
+
+    call user_evalj(n, x, m, p, ind, sorted, jsta, jlen, hlnnzmax, jvar, jval, inform)
+
+    call user_evalhl(n,x,m,p,lambda,hlnnzmax,.true.,hlnnz,hlrow,hlcol,hlval,inform)
+
+    print *, "=====================INPUT VALUES====================="
+    print *, "x_wrap = ", x
+    print *, "sorted = ", sorted
+    print *, "ind = ", ind
 
     print *, 'g = ',g(:)
     print *, 'c = ',c(:)

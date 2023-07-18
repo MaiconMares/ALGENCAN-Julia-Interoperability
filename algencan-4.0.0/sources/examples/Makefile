@@ -1,5 +1,5 @@
 fortran: algencanma_f.o
-	$(FC) $(FFLAGS) -L$(BLASSRC)/lib -L$(HSLSRC)/lib -L$(ALGSRC)/lib -lblas -lhsl -lalgencan -shared -o libalgencanma.so algencanma_f.o
+	$(FC) $(FFLAGS) -shared -fPIC -L$(BLASSRC)/lib -L$(HSLSRC)/lib -L$(ALGSRC)/lib -o libalgencanma.so algencanma_f.o -lalgencan -lhsl -lblas   
 	mkdir -p $(BIN)/examples
 	mv libalgencanma.so ../../../interoperability
 
