@@ -9,7 +9,7 @@ module ProblemDefinition
 
   function problem_params()::Tuple
     # Number of variables
-    n::Int64 = 3
+    n::Int32 = 3
 
     # Initial guess and bound constraints
 
@@ -27,8 +27,8 @@ module ProblemDefinition
     ubnd = Vector{Float64}(zeros(n))
 
     # Number of equality (m) and inequality (p) constraints
-    m::Int64 = 1
-    p::Int64 = 1
+    m = 1
+    p = 1
 
     # Defines which constraints should be included in jacobian matrix
     ind = Vector{Int32}(ones(m+p))
@@ -36,10 +36,11 @@ module ProblemDefinition
     # Initial guess for the Lagrange multipliers
 
     lambda = Vector{Float64}(zeros(m+p))
+    c = Vector{Float64}(zeros(m+p))
 
     # Number of entries in the Jacobian of the constraints
 
-    jnnzmax::Int64 = 2 * n
+    jnnzmax::Int32 = 2 * n
 
     # This should be the number of entries in the Hessian of the
     # Lagrangian. But, in fact, some extra space is need (to store the
@@ -47,7 +48,7 @@ module ProblemDefinition
     # predict, and/or to store the Jacobian of the KKT system). Thus,
     # declare it as large as possible.
 
-    hlnnzmax::Int64 = typemax(Int64)
+    hlnnzmax::Int32 = typemax(Int32) ÷ 10
 
     # Feasibility, complementarity, and optimality tolerances
 
@@ -55,7 +56,7 @@ module ProblemDefinition
     epscompl::Float64 = 1.0e-08
     epsopt::Float64   = 1.0e-08
 
-    maxoutit::Int64 = 50
+    maxoutit::Int32 = 50
 
     # rhoauto means that Algencan will automatically set the initial
     # value of the penalty parameter. If you set rhoauto = .false. then
@@ -87,13 +88,13 @@ module ProblemDefinition
     # process. You should test both choices for the problem at hand.
     corrin::Int32 = 0
 
-    inform::Int64 = 0
+    inform::Int32 = 0
 
-    return x,n,f,g,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
+    return x,n,f,g,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
           rhoauto,rhoini,scale,extallowed,corrin,inform,ind
   end
 
-  function evalf!(n::Int64,x,f::Ptr{Float64},inform::Ptr{Int64})::Nothing
+  function evalf!(n::Int32,x,f::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing)::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
 
@@ -103,7 +104,7 @@ module ProblemDefinition
       nothing
   end
 
-  function evalg!(n::Int64,x,g,inform::Int64)::Nothing
+  function evalg!(n::Int32,x,g,inform::Int32,pdataptr::MyDataPtr=nothing)::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
       g_wrap = unsafe_wrap(Array, g, n)
@@ -118,11 +119,16 @@ module ProblemDefinition
   end
 
   function evalc!(
-    n::Int64,x,m::Int64,p::Int64,c,inform::Ptr{Int64}
+    n::Int32,x,m::Int32,p::Int32,c,inform::Int32,pdataptr::MyDataPtr=nothing
     )::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+      println("================JULIA==============")
+      println("n = $n")
+      println("m = $m")
+      println("p = $p")
+     
       x_wrap = unsafe_wrap(Array, x, n)
-      c_wrap = unsafe_wrap(Array, c, m+p)
+      c_wrap = unsafe_wrap(Array, c, (m+p))
 
       c_wrap[1] = 1.0 - x_wrap[1] - x_wrap[2] - x_wrap[3]
       c_wrap[2] = - 6.0 * x_wrap[2] - 4.0 * x_wrap[3] + (x_wrap[1]^3.0) + 3.0
@@ -130,9 +136,9 @@ module ProblemDefinition
       nothing
   end
 
-  function evalj!(n::Int64,x,m::Int64,p::Int64,ind,
-    sorted,jsta,jlen,lim::Int64,
-    jvar,jval,inform::Int64,pdataptr::MyDataPtr=nothing
+  function evalj!(n::Int32,x::Ptr{Float64},m::Int32,p::Int32,ind::Ptr{Int32},
+    sorted::Ptr{Int32},jsta::Ptr{Int32},jlen::Ptr{Int32},lim::Int32,
+    jvar::Ptr{Int32},jval::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing
     )::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
       x_wrap = unsafe_wrap(Array, x, n)
@@ -189,24 +195,24 @@ module ProblemDefinition
   end
 
   function evalhl!(
-    n::Int64,x,m::Int64,p::Int64,lambda,lim::Int64,
-    inclf::Int32,hlnnz::Int64,hlrow,hlcol,hlval,
-    inform::Int64,pdataptr::MyDataPtr=nothing
+    n::Int32,x::Ptr{Float64},m::Int32,p::Int32,lambda::Ptr{Float64},lim::Int32,
+    inclf::Int32,hlnnz::Ptr{Int32},hlrow::Ptr{Int32},hlcol::Ptr{Int32},hlval::Ptr{Float64},
+    inform::Int32,pdataptr::MyDataPtr=nothing
     )::Nothing
-    hlnnzmax::Int64 = typemax(Int64)
+
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap = unsafe_wrap(Array, x, n)
-    hlrow_wrap = unsafe_wrap(Array, hlrow, hlnnzmax)
-    hlcol_wrap = unsafe_wrap(Array, hlcol, hlnnzmax)
-    hlval_wrap = unsafe_wrap(Array, hlval, hlnnzmax)
+    hlrow_wrap = unsafe_wrap(Array, hlrow, lim)
+    hlcol_wrap = unsafe_wrap(Array, hlcol, lim)
+    hlval_wrap = unsafe_wrap(Array, hlval, lim)
     lambda_wrap = unsafe_wrap(Array, lambda, m+p)
 
-    hlnnz = 0
+    temp = 0
 
     # If .not. inclf then the Hessian of the objective function must not be included
 
     if (Bool(inclf))
-      if ( hlnnz + 2 > lim )
+      if ( temp + 2 > lim )
         inform = -95
         return
       end
@@ -232,7 +238,7 @@ module ProblemDefinition
       hlval_wrap[5]= 6.0
       hlval_wrap[6]= 2.0
 
-      hlnnz = 6
+      temp = 6
 
     end
 
@@ -241,15 +247,21 @@ module ProblemDefinition
     # considered. This feature simplifies the construction of the
     # Hessian of the Lagrangian.
 
-    if ( hlnnz + 1 > lim )
+    if ( temp + 1 > lim )
       inform = -95
       return
     end
 
-    hlrow_wrap[hlnnz+1] = 1
-    hlcol_wrap[hlnnz+1] = 1
-    hlval_wrap[hlnnz+1] = lambda_wrap[2] * ( - 6.0 * x_wrap[1] )
+    hlrow_wrap[temp+1] = 1
+    hlcol_wrap[temp+1] = 1
+    hlval_wrap[temp+1] = lambda_wrap[2] * ( - 6.0 * x_wrap[1] )
 
+    temp = temp + 1
+
+    unsafe_store!(hlnnz, temp)
+
+    println("================JULIA==============")
+    println("hlnnz = $temp")
     nothing
   end
 end
