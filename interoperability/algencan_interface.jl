@@ -27,21 +27,21 @@ function run_algencan()
     Ref{Int32},Ref{MyDataPtr}
   ))
 
-  x,n,f,g,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
-          rhoauto,rhoini,scale,extallowed,corrin,inform,ind,pdata = problem_params()
+  x,n,f,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
+          rhoauto,rhoini,scale,extallowed,corrin,inform,maxoutit,pdata = problem_params()
 
   println("Calling function!")
   @ccall lib_path.__algencanma_MOD_init(
     evalf_ptr::Ptr{Cvoid}, evalg_ptr::Ptr{Cvoid},
     evalc_ptr::Ptr{Cvoid}, evalj_ptr::Ptr{Cvoid},
     evalhl_ptr::Ptr{Cvoid}, x::Ptr{Float64},
-    n::Ref{Int32},f::Ref{Float64},g::Ptr{Float64},c::Ptr{Float64}, lind::Ptr{Int32}, lbnd::Ptr{Float64},
+    n::Ref{Int32},f::Ref{Float64},c::Ptr{Float64}, lind::Ptr{Int32}, lbnd::Ptr{Float64},
     uind::Ptr{Int32}, ubnd::Ptr{Float64},
     m::Ref{Int32}, p::Ref{Int32}, lambda::Ptr{Float64},
     jnnzmax::Ref{Int32}, hlnnzmax::Ref{Int32}, epsfeas::Ref{Float64},
     epscompl::Ref{Float64},epsopt::Ref{Float64}, rhoauto::Ref{Int32},
     rhoini::Ref{Float64},scale::Ref{Int32},extallowed::Ref{Int32},corrin::Ref{Int32},
-    inform::Ref{Int32},ind::Ptr{Int32},pdata::Ref{MyDataPtr}
+    inform::Ref{Int32},maxoutit::Ref{Int32},pdata::Ref{MyDataPtr}
     )::Cvoid
 
   Libdl.dlclose(lib)
