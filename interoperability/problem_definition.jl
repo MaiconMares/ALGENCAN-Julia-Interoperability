@@ -2,9 +2,9 @@ module ProblemDefinition
   export MyDataPtr,evalf!,evalc!,evalg!,evalj!,evalhl!,problem_params
 
   mutable struct MyDataPtr
-    counters::NTuple{5, Cint}
+    counters::NTuple{5, Int32}
 
-    MyDataPtr(counters) = new((0,0,0,0,0))
+    MyDataPtr(counters) = new(counters)
   end
 
   function problem_params()::Tuple
@@ -90,12 +90,15 @@ module ProblemDefinition
 
     inform::Int32 = 0
 
+    pdata::MyDataPtr = MyDataPtr((0,0,0,0,0))
+
     return x,n,f,g,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
-          rhoauto,rhoini,scale,extallowed,corrin,inform,ind
+          rhoauto,rhoini,scale,extallowed,corrin,inform,ind, pdata
   end
 
-  function evalf!(n::Int32,x,f::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing)::Nothing
+  function evalf!(n::Int32,x,f::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+      pdata_wrap = unsafe_load(pdataptr)
       x_wrap = unsafe_wrap(Array, x, n)
 
       temp = ( x_wrap[1] + 3.0 * x_wrap[2] + x_wrap[3] )^(2.0) + 4.0 * (x_wrap[1] - x_wrap[2])^(2.0)
@@ -122,10 +125,6 @@ module ProblemDefinition
     n::Int32,x,m::Int32,p::Int32,c,inform::Int32,pdataptr::MyDataPtr=nothing
     )::Nothing
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
-      println("================JULIA==============")
-      println("n = $n")
-      println("m = $m")
-      println("p = $p")
      
       x_wrap = unsafe_wrap(Array, x, n)
       c_wrap = unsafe_wrap(Array, c, (m+p))
@@ -259,9 +258,7 @@ module ProblemDefinition
     temp = temp + 1
 
     unsafe_store!(hlnnz, temp)
-
-    println("================JULIA==============")
-    println("hlnnz = $temp")
+    
     nothing
   end
 end
