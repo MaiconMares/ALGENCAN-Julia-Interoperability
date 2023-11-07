@@ -22,10 +22,10 @@ module JuliaInterface4CUTEst
     f::Float64 = 0.0
 
     lind = Vector{Int32}(zeros(n))
-    lbnd = Vector{Float64}(zeros(n))
+    lbnd::Vector{Float64} = [-1.0e20 for _ in 1:n]
 
     uind = Vector{Int32}(zeros(n))
-    ubnd = Vector{Float64}(zeros(n))
+    ubnd::Vector{Float64} = [1.0e20 for _ in 1:n]
 
     lvar = nlp.meta.lvar
     uvar = nlp.meta.uvar
@@ -52,7 +52,7 @@ module JuliaInterface4CUTEst
 
     # Number of entries in the Jacobian of the constraints
 
-    jnnzmax::Int32 = nlp.meta.nnzj
+    jnnzmax::Int32 = typemax(Int32) ÷ 10
 
     # This should be the number of entries in the Hessian of the
     # Lagrangian. But, in fact, some extra space is need (to store the
@@ -60,7 +60,7 @@ module JuliaInterface4CUTEst
     # predict, and/or to store the Jacobian of the KKT system). Thus,
     # declare it as large as possible.
 
-    hlnnzmax::Int32 = typemax(Int32) ÷ 10
+    hlnnzmax::Int32 = typemax(Int32) ÷ 1000
 
     # Feasibility, complementarity, and optimality tolerances
 
@@ -116,7 +116,7 @@ module JuliaInterface4CUTEst
 
     temp::Float64 = convert(Float64, obj(nlp, x_wrap))
     
-    unsafe_store!(f, temp, 1)
+    unsafe_store!(f, temp)
 
     nothing
   end
@@ -125,15 +125,13 @@ module JuliaInterface4CUTEst
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
     g_wrap::Vector{Float64} = unsafe_wrap(Array, g, n)
-
-    f = (x_arg::Vector{Float64}) -> convert(Vector{Float64}, obj(nlp, x_arg))
-
+    
     df = (x_arg::Vector{Float64}) -> convert(Vector{Float64},grad(nlp, x_arg))
 
-    g_wrap = df(x_wrap)
-
-    for i in 1:n
-      unsafe_store!(g, g_wrap[i], i)
+    temp::Vector{Float64} = df(x_wrap)
+    
+    for j in 1:n
+      g_wrap[j] = temp[j]
     end
 
     nothing
@@ -142,26 +140,28 @@ module JuliaInterface4CUTEst
   function evalc!(
     n::Int32,x::Ptr{Float64},m::Int32,p::Int32,c::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing
     )::Nothing
-      # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr 
-      if ((m+p) == 0)
-        return nothing
-      end
+    # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr 
+    if ((m+p) == 0)
+      return nothing
+    end
 
-      println("evalc!")
+    x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
+    c_wrap::Vector{Float64} = unsafe_wrap(Array, c, (m+p))
 
-      x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
-      c_wrap::Vector{Float64} = unsafe_wrap(Array, c, (m+p))
+    temp::Vector{Float64} = convert(Vector{Float64}, cons(nlp, x_wrap))
+
+    for j in 1:(m+p)
+      c_wrap[j] = temp[j]
+    end
     
-      c_wrap = convert(Vector{Float64}, cons(nlp, x_wrap))
-
-      low_constr_idx = nlp.meta.jlow
-      if (length(low_constr_idx) > 0)
-        for i in low_constr_idx
-          unsafe_store!(c, c_wrap[i]*-1.0, i)
-        end
+    low_constr_idx = nlp.meta.jlow
+    if (length(low_constr_idx) > 0)
+      for i in low_constr_idx
+        c_wrap[i] = c_wrap[i]*-1.0
       end
+    end
 
-      nothing
+    nothing
   end
 
   function evalj!(n::Int32,x::Ptr{Float64},m::Int32,p::Int32,ind::Ptr{Int32},
@@ -173,8 +173,6 @@ module JuliaInterface4CUTEst
       return nothing
     end
 
-    println("==============JULIA INTERFACE==============")
-    println("evalj!")
     x_wrap = unsafe_wrap(Array, x, n)
     ind_wrap = unsafe_wrap(Array, ind, m+p)
     sorted_wrap = unsafe_wrap(Array, sorted, m+p)
@@ -182,45 +180,28 @@ module JuliaInterface4CUTEst
     jlen_wrap = unsafe_wrap(Array, jlen, m+p)
     jvar_wrap = unsafe_wrap(Array, jvar, lim)
     jval_wrap = unsafe_wrap(Array, jval, lim)
-
-    println("x = $x_wrap")
-    println("lim = $lim")
-    println("ind = $ind_wrap")
-    println("sorted = $sorted_wrap")
-    println("jsta = $jsta_wrap")
-    println("jlen = $jlen_wrap")
-    println("jval = ", jval_wrap)
-    println("jvar = ", jvar_wrap)
     
     csc2csr(nlp,x_wrap,jval_wrap,jvar_wrap,jsta_wrap,jlen_wrap)
     
     for i in 1:(m+p)
-      if (Bool(ind_wrap[i]))
+      sorted_wrap[i] = 0
+      if (ind_wrap[i] != 0)
         if ( lim < n )
-          inform = -94
+          error_code::Int32 = -94
+          unsafe_store!(inform, error_code)
           return
         end
         
-        sorted_wrap[i] = 1
       end
     end
     
     # I need to multiply only the lines of inequality constraints in order to convert the operator to that accepted by ALGENCAN (<=)
-    for i in (m*n)+1:length(jval_wrap)
-      jval_wrap[i] = jval_wrap[i] * -1.0
+    low_constr_idx = nlp.meta.jlow
+    if (length(low_constr_idx) > 0)
+      for i in (m*n)+1:length(jval_wrap)
+        jval_wrap[i] = jval_wrap[i] * -1.0
+      end
     end
-
-    println("===========AFTER COMPUTING VALUES===========")
-    println("x = $x_wrap")
-    println("lim = $lim")
-    println("ind = $ind_wrap")
-    println("sorted = $sorted_wrap")
-    println("jsta = $jsta_wrap")
-    println("jlen = $jlen_wrap")
-    println("jval = ", jval_wrap)
-    println("jvar = ", jvar_wrap)
-
-    println("end evalj!")
 
     nothing
   end
@@ -228,59 +209,53 @@ module JuliaInterface4CUTEst
   function evalhl!(
     n::Int32,x::Ptr{Float64},m::Int32,p::Int32,lambda::Ptr{Float64},lim::Int32,
     inclf::Int32,hlnnz::Ptr{Int32},hlrow::Ptr{Int32},hlcol::Ptr{Int32},hlval::Ptr{Float64},
-    inform::Int32,pdataptr::MyDataPtr=nothing
+    inform::Ptr{Int32},pdataptr::MyDataPtr=nothing
     )::Nothing
-
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap = unsafe_wrap(Array, x, n)
-    hlrow_wrap = unsafe_wrap(Array, hlrow, lim)
     hlcol_wrap = unsafe_wrap(Array, hlcol, lim)
     hlval_wrap = unsafe_wrap(Array, hlval, lim)
-    #hlnnz_wrap = unsafe_wrap(Array, hlnnz, 1)
     lambda_wrap = unsafe_wrap(Array, lambda, m+p)
-    println("lambda = $lambda_wrap")
+    inform_wrap = unsafe_wrap(Array, inform, 1)
+    error_code::Int32 = -95
 
-    temp = 0
+    hlnnz_temp = 0
 
     # If .not. inclf then the Hessian of the objective function must not be included
-    println("inclf = $inclf")
     
     if (Bool(inclf))
-      if ( temp + 2 > lim )
-        #unsafe_store!(inform, -95)
-        inform = -95
+      if ( hlnnz_temp + 2 > lim )
+        unsafe_store!(inform, error_code)
         return
-      end
-
-      adj_signal = Vector{Float64}(ones(m+p))
-      
-      for k in 1:(m+p)
-        adj_signal[k] = lambda_wrap[k]
       end
 
       low_constr_idx = nlp.meta.jlow
       if (length(low_constr_idx) > 0)
         for i in low_constr_idx
           lambda_wrap[i] = lambda_wrap[i] * -1.0
-          #adj_signal[i] = lambda_wrap[i] * -1.0
         end
       end
 
-      println("adj_signal = ", adj_signal)
-      
-      hlval_wrap = hess_coord(nlp, x_wrap, lambda_wrap)
-      hlrow_wrap, hlcol_wrap = hess_structure(nlp)
+      hlval_temp = hess_coord(nlp, x_wrap, lambda_wrap)
+      hlrow_temp, hlcol_temp = hess_structure(nlp)
 
-      println("lim = $lim")
-      println("hlval = $hlval_wrap")
-      println("hlcol = $hlcol_wrap")
-      println("hlrow = $hlrow_wrap")
-      println("lambda = $lambda_wrap")
-      
-      temp = length(hlval_wrap)
-      unsafe_store!(hlnnz, temp)
-      
-      println("hlnnz = ", temp)
+      #hlval_temp, hlrow_temp, hlcol_temp, hlnnz_temp = reindex_hessian(hlval_temp,n,hlrow_temp,hlcol_temp)
+
+      for val in 1:length(hlval_temp)
+        unsafe_store!(hlval, hlval_temp[val], val)
+      end
+
+      for row in 1:length(hlrow_temp)
+        #println("hlrow_temp[$row] = ", hlrow_temp[row])
+        unsafe_store!(hlcol, hlrow_temp[row], row)
+      end
+
+      for col in 1:length(hlcol_temp)
+        unsafe_store!(hlrow, hlcol_temp[col], col)
+      end
+
+      hlnnz_temp = nlp.meta.nnzh
+      unsafe_store!(hlnnz, hlnnz_temp)
     end
 
     # Note that entries of the Hessian of the Lagrangian can be
@@ -288,14 +263,11 @@ module JuliaInterface4CUTEst
     # considered. This feature simplifies the construction of the
     # Hessian of the Lagrangian.
 
-    if (temp + 1 > lim)
-      #unsafe_store!(inform, -95)
-      inform = -95
+    if (hlnnz_temp + 1 > lim)
+      unsafe_store!(inform, error_code)
       return
     end
 
-    println("end evalhl!")
-    
     nothing
   end
 
@@ -343,5 +315,29 @@ module JuliaInterface4CUTEst
       val2[cnt[row[j]]] = val1[j]
       cnt[row[j]] = cnt[row[j]] + 1
     end
+  end
+
+  function reindex_hessian(hessian::Vector{Float64},n::Int32,rows::Vector{Int64},cols::Vector{Int64})::Vector{Union{Vector{Float64},Vector{Int32},Int32}}
+    m::Int64 = n
+    n::Int64 = n
+    hessian_size = length(hessian)
+    hlnnz::Int32 = hessian_size
+    new_rows::Vector{Int32} = []
+    new_cols::Vector{Int32} = []
+    new_hessian::Vector{Float64} = []
+
+    for i in 1:hessian_size
+      elem::Real = hessian[i]
+      if (!iszero(elem))
+        new_row_idx = abs(rows[i]-m) + 1
+        new_col_idx = abs(cols[i]-n) + 1
+        
+        push!(new_rows, new_row_idx)
+        push!(new_cols, new_col_idx)
+        push!(new_hessian, elem)
+      end
+    end
+
+    return [new_hessian,new_rows,new_cols,hlnnz]
   end
 end
