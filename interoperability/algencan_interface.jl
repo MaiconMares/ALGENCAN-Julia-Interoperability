@@ -10,32 +10,31 @@ lib = Libdl.dlopen(lib_path, RTLD_NOW|RTLD_GLOBAL)
 
 function run_algencan()
   evalf_ptr = @cfunction(evalf!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}))
-  evalg_ptr = @cfunction(evalg!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ref{MyDataPtr}))
+  evalg_ptr = @cfunction(evalg!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}))
   evalc_ptr = @cfunction(evalc!, Nothing, (
-    Ref{Int32},Ptr{Float64},Ref{Int32},Ref{Int32},Ptr{Float64},Ref{Int32}, Ref{MyDataPtr}
+    Ref{Int32},Ptr{Float64},Ref{Int32},Ref{Int32},Ptr{Float64},Ref{Int32}, Ptr{MyDataPtr}
   ))
 
   evalj_ptr = @cfunction(evalj!, Nothing, (
     Ref{Int32},Ptr{Float64},Ref{Int32},Ref{Int32},Ptr{Int32},
     Ptr{Int32},Ptr{Int32},Ptr{Int32},Ref{Int32},
-    Ptr{Int32},Ptr{Float64},Ref{Int32},Ref{MyDataPtr}
+    Ptr{Int32},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}
   ))
     
   evalhl_ptr = @cfunction(evalhl!, Nothing, (
     Ref{Int32},Ptr{Float64},Ref{Int32},Ref{Int32},Ptr{Float64},Ref{Int32},
     Ref{Int32},Ptr{Int32},Ptr{Int32},Ptr{Int32},Ptr{Float64},
-    Ref{Int32},Ref{MyDataPtr}
+    Ptr{Int32},Ptr{MyDataPtr}
   ))
 
-  x,n,f,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
+  x,n,f,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
           rhoauto,rhoini,scale,extallowed,corrin,inform,maxoutit,pdata = problem_params()
 
-  println("Calling function!")
   @ccall lib_path.__algencanma_MOD_init(
     evalf_ptr::Ptr{Cvoid}, evalg_ptr::Ptr{Cvoid},
     evalc_ptr::Ptr{Cvoid}, evalj_ptr::Ptr{Cvoid},
     evalhl_ptr::Ptr{Cvoid}, x::Ptr{Float64},
-    n::Ref{Int32},f::Ref{Float64},c::Ptr{Float64}, lind::Ptr{Int32}, lbnd::Ptr{Float64},
+    n::Ref{Int32},f::Ref{Float64},lind::Ptr{Int32}, lbnd::Ptr{Float64},
     uind::Ptr{Int32}, ubnd::Ptr{Float64},
     m::Ref{Int32}, p::Ref{Int32}, lambda::Ptr{Float64},
     jnnzmax::Ref{Int32}, hlnnzmax::Ref{Int32}, epsfeas::Ref{Float64},

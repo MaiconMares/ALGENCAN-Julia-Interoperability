@@ -48,11 +48,10 @@ module JuliaInterface4CUTEst
     # Initial guess for the Lagrange multipliers
 
     lambda = Vector{Float64}(zeros(m+p))
-    c = Vector{Float64}(zeros(m+p))
 
     # Number of entries in the Jacobian of the constraints
 
-    jnnzmax::Int32 = typemax(Int32) ÷ 10
+    jnnzmax::Int32 = nlp.meta.nnzj
 
     # This should be the number of entries in the Hessian of the
     # Lagrangian. But, in fact, some extra space is need (to store the
@@ -60,7 +59,7 @@ module JuliaInterface4CUTEst
     # predict, and/or to store the Jacobian of the KKT system). Thus,
     # declare it as large as possible.
 
-    hlnnzmax::Int32 = typemax(Int32) ÷ 1000
+    hlnnzmax::Int32 = typemax(Int32) ÷ 10
 
     # Feasibility, complementarity, and optimality tolerances
 
@@ -104,13 +103,13 @@ module JuliaInterface4CUTEst
 
     pdata::MyDataPtr = MyDataPtr((0,0,0,0,0))
 
-    return x,n,f,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
+    return x,n,f,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,epsopt,
           rhoauto,rhoini,scale,extallowed,corrin,inform,maxoutit,pdata
   end
 
   function evalf!(n::Int32,x::Ptr{Float64},f::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
-    pdata_wrap = unsafe_load(pdataptr)
+    println("evalf!")
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
     f_wrap::Vector{Float64} = unsafe_wrap(Array, f, 1)
 
@@ -121,8 +120,9 @@ module JuliaInterface4CUTEst
     nothing
   end
 
-  function evalg!(n::Int32,x::Ptr{Float64},g::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing)::Nothing
+  function evalg!(n::Int32,x::Ptr{Float64},g::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
+    println("evalg!")
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
     g_wrap::Vector{Float64} = unsafe_wrap(Array, g, n)
     
@@ -138,8 +138,9 @@ module JuliaInterface4CUTEst
   end
 
   function evalc!(
-    n::Int32,x::Ptr{Float64},m::Int32,p::Int32,c::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing
+    n::Int32,x::Ptr{Float64},m::Int32,p::Int32,c::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
+    println("evalc!")
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr 
     if ((m+p) == 0)
       return nothing
@@ -150,14 +151,12 @@ module JuliaInterface4CUTEst
 
     temp::Vector{Float64} = convert(Vector{Float64}, cons(nlp, x_wrap))
 
-    for j in 1:(m+p)
-      c_wrap[j] = temp[j]
-    end
-    
     low_constr_idx = nlp.meta.jlow
-    if (length(low_constr_idx) > 0)
-      for i in low_constr_idx
-        c_wrap[i] = c_wrap[i]*-1.0
+    for j in 1:(m+p)
+      if j in low_constr_idx
+        c_wrap[j] = temp[j]*-1.0
+      else
+        c_wrap[j] = temp[j]
       end
     end
 
@@ -166,12 +165,14 @@ module JuliaInterface4CUTEst
 
   function evalj!(n::Int32,x::Ptr{Float64},m::Int32,p::Int32,ind::Ptr{Int32},
     sorted::Ptr{Int32},jsta::Ptr{Int32},jlen::Ptr{Int32},lim::Int32,
-    jvar::Ptr{Int32},jval::Ptr{Float64},inform::Int32,pdataptr::MyDataPtr=nothing
+    jvar::Ptr{Int32},jval::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
+    println("evalj!")
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     if ((m+p) == 0)
       return nothing
     end
+    
 
     x_wrap = unsafe_wrap(Array, x, n)
     ind_wrap = unsafe_wrap(Array, ind, m+p)
@@ -209,8 +210,9 @@ module JuliaInterface4CUTEst
   function evalhl!(
     n::Int32,x::Ptr{Float64},m::Int32,p::Int32,lambda::Ptr{Float64},lim::Int32,
     inclf::Int32,hlnnz::Ptr{Int32},hlrow::Ptr{Int32},hlcol::Ptr{Int32},hlval::Ptr{Float64},
-    inform::Ptr{Int32},pdataptr::MyDataPtr=nothing
+    inform::Ptr{Int32},pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
+    println("evalhl!")
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap = unsafe_wrap(Array, x, n)
     hlcol_wrap = unsafe_wrap(Array, hlcol, lim)

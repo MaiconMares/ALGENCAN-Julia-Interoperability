@@ -5,20 +5,20 @@ module JuliaInterface4CUTEstTest
     using .JuliaInterface4CUTEst
 
     include("../algencan_interface.jl")
-    JuliaInterface4CUTEst.nlp = CUTEstModel("HS27")
 
-    @testset "Check algencan_interface behaviour over HS14 problem" begin
-        @time begin
-            #obj_func,x_vec = run_algencan()
-            x = run_algencan()
-            println("=======================TEST RESULTS=======================")
-            print("Time spent: ")
+    problem_set::Vector{String} = CUTEst.select(max_var=10,custom_filter=x->x["constraints"]["ineq_both"] == 0)[1:3]
+    #problem_set::Vector{String} = ["POLAK4","EXPFITA"]
+
+    for problem in problem_set
+        JuliaInterface4CUTEst.nlp = CUTEstModel(problem,lfirst=false,lvfirst=false)
+
+        @testset "Check algencan_interface behaviour over $problem problem" begin
+            @time begin
+                run_algencan()
+                println("=======================TEST RESULTS=======================")
+                print("Time spent: ")
+                finalize(JuliaInterface4CUTEst.nlp)
+            end
         end
-        #g = grad(nlp, x)
-        #println(g)
-        #gradient_norm = norm(g)
-        #println("Objective function's gradient norm: $gradient_norm")
-        
-        finalize(JuliaInterface4CUTEst.nlp)
     end
 end

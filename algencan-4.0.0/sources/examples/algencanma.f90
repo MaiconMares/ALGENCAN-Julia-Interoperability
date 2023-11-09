@@ -129,8 +129,8 @@ module algencanma
 contains
 
   subroutine init(user_evalf,user_evalg,user_evalc,user_evalj,user_evalhl, &
-    x,n,f,g,c,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,  &
-    epsopt,rhoauto,rhoini,scale,extallowed,corrin,inform,ind)
+    x,n,f,lind,lbnd,uind,ubnd,m,p,lambda,jnnzmax,hlnnzmax,epsfeas,epscompl,  &
+    epsopt,rhoauto,rhoini,scale,extallowed,corrin,inform,maxoutit,pdata)
 
     implicit none
 
@@ -143,45 +143,27 @@ contains
 
     ! PARAMETERS
     integer, target, intent(inout) :: n, m, p
-    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(n),uind(n), ind(m+p)
-    real(kind=8), intent(inout) :: lambda(m+p),x(n), epsfeas,epscompl,epsopt,rhoini,g(n),c(m+p)
+    logical, intent(in) :: corrin,extallowed,rhoauto,scale, lind(n),uind(n)
+    real(kind=8), intent(inout) :: x(n), epsfeas,epscompl,epsopt,rhoini
+    real(kind=8), target, intent(inout) :: lambda(m+p)
     real(kind=8), intent(in) :: lbnd(n),ubnd(n)
-    integer, intent(inout) :: hlnnzmax, jnnzmax
+    integer, intent(in) :: hlnnzmax, jnnzmax
     real(kind=8), target, intent(out) :: f
     integer, target, intent(inout) :: inform
+    integer, intent(in) :: maxoutit
+    type(pdata_type), target, intent(inout) :: pdata
 
     
     ! LOCAL SCALARS
-    ! Remember to remove: hlnnz
-    integer :: allocerr,ierr,istop,maxoutit,nwcalls,nwtotit,outiter,totiter
+    integer :: allocerr,ierr,istop,nwcalls,nwtotit,outiter,totiter
     real(kind=8) :: bdsvio,csupn,finish,nlpsupn,ssupn,start
-    type(pdata_type), target :: pdata
-
-    integer :: hlnnz
-    integer :: hlrow(hlnnzmax), hlcol(hlnnzmax)
-    real(kind=8) :: hlval(hlnnzmax)
-
-    print *, '=============FORTRAN (BEFORE CALLING ALGENCAN)======================'
-    print *, 'm = ', m
-    print *, 'p = ', p
+    !type(pdata_type), target :: pdata
+    real(kind=8) :: c(m+p)
     
-    call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
-
-    call user_evalhl(n,x,m,p,lambda,hlnnzmax,.true.,hlnnz,hlrow,hlcol,hlval,inform,c_loc(pdata))
-
-    print *, "hlnnz = ", hlnnz
-    print *, "hlrow = ", hlrow(1:7)
-    print *, "hlcol = ", hlcol(1:7)
-    print *, "hlval = ", hlval(1:7)
-
-    stop
-
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
       stop
     end if
-    
-    ! allocate(c(m+p),stat=allocerr)
     
     if ( allocerr .ne. 0 ) then
       print *, 'Allocation error.'
@@ -194,10 +176,6 @@ contains
         n,x,lind,lbnd,uind,ubnd,m,p,lambda,epsfeas,epscompl,epsopt,maxoutit, &
         scale,rhoauto,rhoini,extallowed,corrin,f,csupn,ssupn,nlpsupn,bdsvio, &
         outiter,totiter,nwcalls,nwtotit,ierr,istop,c_loc(pdata))
-
-    print *, '=============FORTRAN (AFTER CALLING ALGENCAN)======================'
-    print *, 'm = ', m
-    print *, 'p = ', p
 
     call cpu_time(finish)
 
@@ -228,14 +206,14 @@ contains
 
     inform = 0
 
-    ! call user_evalf(n,x,f,inform,c_loc(pdata))
+    call user_evalf(n,x,f,inform,c_loc(pdata))
 
     if ( inform .ne. 0 ) then
       print *, 'error when calling evalf in the main file. '
       stop
     end if
 
-    ! call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
+    call user_evalc(n,x,m,p,c,inform,c_loc(pdata))
 
     if ( inform .ne. 0 ) then
       print *, 'error when calling evalc in the main file. '
@@ -257,19 +235,15 @@ contains
     ! *****************************************************************
     ! *****************************************************************
 
-    write (*,*) "     x = ", x
     write (*,*) "lambda = ", lambda
-
-    ! deallocate(c,stat=allocerr)
 
     if ( allocerr .ne. 0 ) then
       print *, 'Deallocation error.'
       stop
     end if
 
-    stop
+    !stop
   end subroutine init
-
   ! *****************************************************************
   ! *****************************************************************
 
@@ -294,7 +268,7 @@ contains
     call c_f_pointer(pdataptr,pdata)
     pdata%counters(1) = pdata%counters(1) + 1
 
-    f = ( x(1) + 3.0d0 * x(2) + x(3) ) ** 2.0d0 + 4.0d0 * (x(1) - x(2)) ** 2.0d0
+    f = ( x(1) - 5.0d0 ) ** 2.0d0 + x(2)**2 - 25.0d0
 
   end subroutine evalf_original
 
@@ -318,17 +292,13 @@ contains
     ! function.
 
     ! LOCAL SCALARS
-    real(kind=8) :: t1, t2
     type(pdata_type), pointer :: pdata
 
     call c_f_pointer(pdataptr,pdata)
     pdata%counters(2) = pdata%counters(2) + 1
 
-    t1 = x(1) + 3.0d0 * x(2) + x(3)
-    t2 = x(1) - x(2)
-    g(1) = 2.0d0 * t1 + 8.0d0 * t2
-    g(2) = 6.0d0 * t1 - 8.0d0 * t2
-    g(3) = 2.0d0 * t1
+    g(1) = 2*x(1) - 10.0d0
+    g(2) = 2*x(2)
 
   end subroutine evalg_original
 
@@ -356,8 +326,7 @@ contains
     call c_f_pointer(pdataptr,pdata)
     pdata%counters(3) = pdata%counters(3) + 1
 
-    c(1) = 1.0d0 - x(1) - x(2) - x(3)
-    c(2) = - 6.0d0 * x(2) - 4.0d0 * x(3) + x(1) ** 3.0d0 + 3.0d0
+    c(1) = x(1)**2 - x(2)
 
   end subroutine evalc_original
 
@@ -408,7 +377,8 @@ contains
        nnz1 = nnz1 + 1
 
        jvar(1:n) = (/ (i,i=1,n) /)
-       jval(1:n) = -1.0d0
+       jval(1) = 2.0d0 * x(1)
+       jval(2) = -1.0d0
        nnz2 = nnz2 + n
 
        ! Says whether the variables' indices in jvar (related to this
@@ -420,25 +390,6 @@ contains
 
        sorted(1) = .true.
     end if
-
-    if ( ind(2) ) then
-       if ( lim .lt. n ) then
-          inform = -94
-          return
-       end if
-
-       jsta(nnz1+1) = nnz2 + 1
-       jlen(nnz1+1) = n
-
-       jvar(nnz2+1:nnz2+n) = (/ (i,i=1,n) /)
-
-       jval(nnz2+1) = - 3.0d0 * x(1) ** 2.0d0
-       jval(nnz2+2) = 6.0d0
-       jval(nnz2+3) = 4.0d0
-
-       sorted(2) = .true.
-    end if
-
   end subroutine evalj_original
 
   ! *****************************************************************
@@ -481,11 +432,16 @@ contains
           return
        end if
 
-       hlnnz = 6
+       hlnnz = 3
 
-       hlrow(1:6) = [      1,      2,      2,     3,     3,     3 ]
-       hlcol(1:6) = [      1,      1,      2,     1,     2,     3 ]
-       hlval(1:6) = [ 10.0d0, -2.0d0, 26.0d0, 2.0d0, 6.0d0, 2.0d0 ]
+       hlrow(1:3) = [      1,      2,      1]
+       hlcol(1:3) = [      1,      2,      1]
+       hlval(1:3) = [ 2.0d0, 2.0d0, 2.0d0*lambda(1)]
+
+      print *, "hlrow = ", hlrow(1:10)
+      print *, "hlcol = ", hlcol(1:10)
+      print *, "hlval = ", hlval(1:10)
+      print *, "lambda = ", lambda
 
     end if
 
@@ -498,12 +454,6 @@ contains
        inform = -95
        return
     end if
-
-    hlnnz = hlnnz + 1
-
-    hlrow(hlnnz) = 1
-    hlcol(hlnnz) = 1
-    hlval(hlnnz) = lambda(2) * ( - 6.0d0 * x(1) )
 
   end subroutine evalhl_original
 
