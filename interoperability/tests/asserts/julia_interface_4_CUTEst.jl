@@ -51,7 +51,7 @@ module JuliaInterface4CUTEst
 
     # Number of entries in the Jacobian of the constraints
 
-    jnnzmax::Int32 = nlp.meta.nnzj
+    jnnzmax::Int32 = 2 * nlp.meta.nnzj
 
     # This should be the number of entries in the Hessian of the
     # Lagrangian. But, in fact, some extra space is need (to store the
@@ -109,7 +109,6 @@ module JuliaInterface4CUTEst
 
   function evalf!(n::Int32,x::Ptr{Float64},f::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
-    println("evalf!")
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
     f_wrap::Vector{Float64} = unsafe_wrap(Array, f, 1)
 
@@ -122,7 +121,6 @@ module JuliaInterface4CUTEst
 
   function evalg!(n::Int32,x::Ptr{Float64},g::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
-    println("evalg!")
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
     g_wrap::Vector{Float64} = unsafe_wrap(Array, g, n)
     
@@ -140,7 +138,6 @@ module JuliaInterface4CUTEst
   function evalc!(
     n::Int32,x::Ptr{Float64},m::Int32,p::Int32,c::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
-    println("evalc!")
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr 
     if ((m+p) == 0)
       return nothing
@@ -167,12 +164,10 @@ module JuliaInterface4CUTEst
     sorted::Ptr{Int32},jsta::Ptr{Int32},jlen::Ptr{Int32},lim::Int32,
     jvar::Ptr{Int32},jval::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
-    println("evalj!")
       # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     if ((m+p) == 0)
       return nothing
     end
-    
 
     x_wrap = unsafe_wrap(Array, x, n)
     ind_wrap = unsafe_wrap(Array, ind, m+p)
@@ -212,7 +207,6 @@ module JuliaInterface4CUTEst
     inclf::Int32,hlnnz::Ptr{Int32},hlrow::Ptr{Int32},hlcol::Ptr{Int32},hlval::Ptr{Float64},
     inform::Ptr{Int32},pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
-    println("evalhl!")
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap = unsafe_wrap(Array, x, n)
     hlcol_wrap = unsafe_wrap(Array, hlcol, lim)
@@ -241,14 +235,11 @@ module JuliaInterface4CUTEst
       hlval_temp = hess_coord(nlp, x_wrap, lambda_wrap)
       hlrow_temp, hlcol_temp = hess_structure(nlp)
 
-      #hlval_temp, hlrow_temp, hlcol_temp, hlnnz_temp = reindex_hessian(hlval_temp,n,hlrow_temp,hlcol_temp)
-
       for val in 1:length(hlval_temp)
         unsafe_store!(hlval, hlval_temp[val], val)
       end
 
       for row in 1:length(hlrow_temp)
-        #println("hlrow_temp[$row] = ", hlrow_temp[row])
         unsafe_store!(hlcol, hlrow_temp[row], row)
       end
 
@@ -317,29 +308,5 @@ module JuliaInterface4CUTEst
       val2[cnt[row[j]]] = val1[j]
       cnt[row[j]] = cnt[row[j]] + 1
     end
-  end
-
-  function reindex_hessian(hessian::Vector{Float64},n::Int32,rows::Vector{Int64},cols::Vector{Int64})::Vector{Union{Vector{Float64},Vector{Int32},Int32}}
-    m::Int64 = n
-    n::Int64 = n
-    hessian_size = length(hessian)
-    hlnnz::Int32 = hessian_size
-    new_rows::Vector{Int32} = []
-    new_cols::Vector{Int32} = []
-    new_hessian::Vector{Float64} = []
-
-    for i in 1:hessian_size
-      elem::Real = hessian[i]
-      if (!iszero(elem))
-        new_row_idx = abs(rows[i]-m) + 1
-        new_col_idx = abs(cols[i]-n) + 1
-        
-        push!(new_rows, new_row_idx)
-        push!(new_cols, new_col_idx)
-        push!(new_hessian, elem)
-      end
-    end
-
-    return [new_hessian,new_rows,new_cols,hlnnz]
   end
 end

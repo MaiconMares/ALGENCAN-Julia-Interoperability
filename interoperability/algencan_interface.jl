@@ -6,9 +6,9 @@ using Libdl
 
 curr_dir = Vector{String}(["./"])
 lib_path = Libdl.find_library("libalgencanma.so", curr_dir)
-lib = Libdl.dlopen(lib_path, RTLD_NOW|RTLD_GLOBAL)
 
 function run_algencan()
+  lib = Libdl.dlopen(lib_path, RTLD_NOW|RTLD_GLOBAL)
   evalf_ptr = @cfunction(evalf!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}))
   evalg_ptr = @cfunction(evalg!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}))
   evalc_ptr = @cfunction(evalc!, Nothing, (
