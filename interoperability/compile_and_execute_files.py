@@ -1,42 +1,29 @@
 import glob, re, os
 
 ALGENCAN_PATH = os.environ['HOME'] + '/Desktop/ALGENCAN-Julia-Interoperability'
-files_path = "../algencan-4.0.0/sources/interfaces/cutest/*.SIF"
-found_problem_paths = glob.glob(files_path)
+problems_filename = ALGENCAN_PATH + "/problems.txt"
+problems_file = open(problems_filename,'r')
+problems_content = problems_file.read()
+problems_list = re.split("\.SIF\s*",problems_content)[:-1]
+problems_file.close()
 
-for file in found_problem_paths:
-    splitted_dirs = re.split("\/", file)
-    problem_name = re.split("\.SIF", splitted_dirs[-1])[0]
-
+for problem in problems_list:
     os.chdir(ALGENCAN_PATH + '/algencan-4.0.0')
-    make_cmd = "make cutest PROBNAME=" + problem_name
+    make_cmd = "make cutest PROBNAME=" + problem
     os.system(make_cmd)
 
     os.chdir(ALGENCAN_PATH + "/algencan-4.0.0/bin/cutest")
     execute_binary_cmd = "./algencan"
     os.system(execute_binary_cmd)
     
-    new_file_name = problem_name + '_tabline.txt'
-    os.rename('tabline.txt',new_file_name)
-
-    file = open(new_file_name,'r')
-    lines = file.readlines()
-
-    file.close()
-    cpu_time = lines[0].split()[2]
-    computed_obj_func = -1
-    
-    idx = 3
-    for value in lines[0].split()[3:-1]:
-        if 'D' in value:
-            computed_obj_func = value
-            break
-        
-        idx += 1
+    result_filename = 'tabline.txt'
+    curr_file = open(result_filename,'r')
+    problem_result = curr_file.read()
+    curr_file.close()
     
     filename = 'results.txt'
     file = open(filename,'a')
 
-    content = "{} {} {}\n".format(problem_name, cpu_time, computed_obj_func)
+    content = "{}\t\t\t\t{}".format(problem, problem_result)
     file.write(content)
     file.close()
