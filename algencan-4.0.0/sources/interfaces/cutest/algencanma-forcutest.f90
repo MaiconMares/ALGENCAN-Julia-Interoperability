@@ -189,7 +189,7 @@ program algencama
 
   jnnzmax = 2 * jnnzmax
 
-  hlnnzmax = huge( 1 )
+  hlnnzmax = huge( 1 ) / 2
 
   allocate(pdata%jperm(jnnzmax),pdata%frelem(max(jnnzmax,hlnnzmax)),pdata%ifrelem(max(jnnzmax,hlnnzmax)),stat=allocerr)
 
