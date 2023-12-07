@@ -1,5 +1,6 @@
+# uncomment the two lines below to run Julia interface with problem defined in problem_definition.jl
+# comment them when running problems with julia_interface_4_CUTEst_test.jl
 #include("./problem_definition.jl")
-
 #using .ProblemDefinition
 
 using Libdl
@@ -7,7 +8,14 @@ using Libdl
 curr_dir = Vector{String}(["./"])
 lib_path = Libdl.find_library("libalgencanma.so", curr_dir)
 
-function run_algencan()
+"""
+  run_algencan()
+
+  Opens a shared library specified in lib_path variable, defines address of some 
+  functions and parameters types and pass all them to a routine in that shared library.
+  Returns a Vector{Float64} that contains x values that solves objective function.
+"""
+function run_algencan()::Vector{Float64}
   lib = Libdl.dlopen(lib_path, RTLD_NOW|RTLD_GLOBAL)
   evalf_ptr = @cfunction(evalf!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}))
   evalg_ptr = @cfunction(evalg!, Nothing, (Ref{Int32},Ptr{Float64},Ptr{Float64},Ref{Int32},Ptr{MyDataPtr}))
@@ -44,4 +52,6 @@ function run_algencan()
     )::Cvoid
 
   Libdl.dlclose(lib)
+
+  return x
 end

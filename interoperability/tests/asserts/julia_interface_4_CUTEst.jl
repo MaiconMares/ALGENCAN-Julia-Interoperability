@@ -1,6 +1,9 @@
+"A module intended to define parameters and functions for CUTEst models in a way that can be used with any model.
+It exports parameters and evaluation functions to be used in ALGENCAN.
+It uses NLPModels package to compute derivatives and another needed computations."
 module JuliaInterface4CUTEst
-  using Flux, NLPModels, CUTEst
-  export MyDataPtr,evalf!,evalc!,evalg!,evalj!,evalhl!,problem_params, nlp
+  using NLPModels, CUTEst
+  export MyDataPtr,evalf!,evalc!,evalg!,evalj!,evalhl!,problem_params,csc2csr, nlp
 
   mutable struct MyDataPtr
     counters::NTuple{5, Int32}
@@ -10,6 +13,11 @@ module JuliaInterface4CUTEst
 
   nlp = ""
 
+  """
+    problem_params()::Tuple
+
+    Returns a Tuple of parameters for a CUTEst model with types expected by ALGENCAN.
+  """
   function problem_params()::Tuple
     # Number of variables
     n::Int32 = nlp.meta.nvar
@@ -107,10 +115,20 @@ module JuliaInterface4CUTEst
           rhoauto,rhoini,scale,extallowed,corrin,inform,maxoutit,pdata
   end
 
+  """
+    evalf!(n::Int32,x::Ptr{Float64},f::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
+
+    Computes objective function with parameters provided from ALGENCAN and stores it in the same 
+    address of f::Ptr{Float64}.
+    Parameters:
+    n::Int32: number of variables in optimization problem (dimension of vector x).
+    x::Ptr{Float64}: vector that stores variables of optimization problem.
+    f::Ptr{Float64}: stores value of objective function.
+    inform::Int32: holds error code if any error occurrs during solving.
+    pdataptr::Ptr{MyDataPtr}: computes number of calls to a function.
+  """
   function evalf!(n::Int32,x::Ptr{Float64},f::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
-    # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
-    f_wrap::Vector{Float64} = unsafe_wrap(Array, f, 1)
 
     temp::Float64 = convert(Float64, obj(nlp, x_wrap))
     
@@ -119,6 +137,18 @@ module JuliaInterface4CUTEst
     nothing
   end
 
+  """
+    evalg!(n::Int32,x::Ptr{Float64},g::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
+
+    Computes gradient of objective function with parameters provided from ALGENCAN and stores it in the same 
+    address of g::Ptr{Float64}.
+    Parameters:
+    n::Int32: number of variables in optimization problem (dimension of vector x).
+    x::Ptr{Float64}: vector that stores variables of optimization problem.
+    g::Ptr{Float64}: stores gradient of objective function.
+    inform::Int32: holds error code if any error occurrs during solving.
+    pdataptr::Ptr{MyDataPtr}: computes number of calls to a function.
+  """
   function evalg!(n::Int32,x::Ptr{Float64},g::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing)::Nothing
     # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap::Vector{Float64} = unsafe_wrap(Array, x, n)
@@ -135,10 +165,25 @@ module JuliaInterface4CUTEst
     nothing
   end
 
+  """
+    evalc!(
+      n::Int32,x::Ptr{Float64},m::Int32,p::Int32,c::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
+    )::Nothing
+
+    Computes vector of restrictions of size m+p with parameters provided from ALGENCAN. Stores result in the same 
+    address of c::Ptr{Float64}.
+    Parameters:
+    n::Int32: number of variables in optimization problem (dimension of vector x).
+    x::Ptr{Float64}: vector that stores variables of optimization problem.
+    m::Int32: number of equality constraints.
+    p::Int32: number of inequality constraints.
+    c::Ptr{Float64}: stores computed constraints, equality constraints comes first.
+    inform::Int32: holds error code if any error occurrs during solving.
+    pdataptr::Ptr{MyDataPtr}: computes number of calls to a function.
+  """
   function evalc!(
     n::Int32,x::Ptr{Float64},m::Int32,p::Int32,c::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
-    # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr 
     if ((m+p) == 0)
       return nothing
     end
@@ -160,11 +205,33 @@ module JuliaInterface4CUTEst
     nothing
   end
 
+  """
+    evalj!(n::Int32,x::Ptr{Float64},m::Int32,p::Int32,ind::Ptr{Int32},
+      sorted::Ptr{Int32},jsta::Ptr{Int32},jlen::Ptr{Int32},lim::Int32,
+      jvar::Ptr{Int32},jval::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
+    )::Nothing
+
+    Computes vectors that describes jacobian of restrictions in Compressed Sparse Row format. Computed vectors are
+    stored in the same addresses of jsta::Ptr{Int32},jlen::Ptr{Int32},jvar::Ptr{Int32} and jval::Ptr{Float64}.
+    Parameters:
+    n::Int32: number of variables in optimization problem (dimension of vector x).
+    x::Ptr{Float64}: vector that stores variables of optimization problem.
+    m::Int32: number of equality constraints.
+    p::Int32: number of inequality constraints.
+    ind::Ptr{Int32}: boolean that indicates which constraints should be included in jacobian of constraints.
+    sorted::Ptr{Int32}: indicates if gradients are in ascending order.
+    jsta::Ptr{Int32}: stores indexes from jval of elements that are first elements of its respective line in original matrix.
+    jlen::Ptr{Int32}: stores quantity of non zero elements in each line.
+    lim::Int32: limit of elements in jvar and jval.
+    jvar::Ptr{Int32}: stores columns indexes of elements from jval.
+    jval::Ptr{Float64}: stores non zero elements.
+    inform::Int32: holds error code if any error occurrs during solving.
+    pdataptr::Ptr{MyDataPtr}: computes number of calls to a function.
+  """
   function evalj!(n::Int32,x::Ptr{Float64},m::Int32,p::Int32,ind::Ptr{Int32},
     sorted::Ptr{Int32},jsta::Ptr{Int32},jlen::Ptr{Int32},lim::Int32,
     jvar::Ptr{Int32},jval::Ptr{Float64},inform::Int32,pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
-      # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     if ((m+p) == 0)
       return nothing
     end
@@ -191,7 +258,6 @@ module JuliaInterface4CUTEst
       end
     end
     
-    # I need to multiply only the lines of inequality constraints in order to convert the operator to that accepted by ALGENCAN (<=)
     low_constr_idx = nlp.meta.jlow
     if (length(low_constr_idx) > 0)
       for i in (m*n)+1:length(jval_wrap)
@@ -202,12 +268,37 @@ module JuliaInterface4CUTEst
     nothing
   end
 
+  """
+    evalhl!(
+      n::Int32,x::Ptr{Float64},m::Int32,p::Int32,lambda::Ptr{Float64},lim::Int32,
+      inclf::Int32,hlnnz::Ptr{Int32},hlrow::Ptr{Int32},hlcol::Ptr{Int32},hlval::Ptr{Float64},
+      inform::Ptr{Int32},pdataptr::Ptr{MyDataPtr}=nothing
+    )::Nothing
+
+    Computes vectors that describes hessian of Lagrangian function in Coordinate format. Computed vectors are
+    stored in the same addresses of hlrow::Ptr{Int32},hlcol::Ptr{Int32} and hlval::Ptr{Float64}.
+    hlrow stores indexes of line elements and hlcol their columns indexes. hlval stores non zero elements from
+    original matrix.
+    Parameters:
+    n::Int32: number of variables in optimization problem (dimension of vector x)
+    x::Ptr{Float64}: vector that stores variables of optimization problem.
+    m::Int32: number of equality constraints.
+    p::Int32: number of inequality constraints.
+    lambda::Ptr{Float64}: stores lagrangian multipliers
+    lim::Int32: limit of elements in hlrow, hlcol and hlval.
+    inclf::Int32: indicates if objective function should be included in hessian.
+    hlnnz::Ptr{Int32}: number of non-zero elements in hessian.
+    hlrow::Ptr{Int32}: stores line indexes of elements in hlval.
+    hlcol::Ptr{Int32}: stores column indexes of elements in hlval.
+    hlval::Ptr{Float64}: stores non-zero elements of hessian sparse matrix.
+    inform::Int32: holds error code if any error occurrs during solving.
+    pdataptr::Ptr{MyDataPtr}: computes number of calls to a function.
+  """
   function evalhl!(
     n::Int32,x::Ptr{Float64},m::Int32,p::Int32,lambda::Ptr{Float64},lim::Int32,
     inclf::Int32,hlnnz::Ptr{Int32},hlrow::Ptr{Int32},hlcol::Ptr{Int32},hlval::Ptr{Float64},
     inform::Ptr{Int32},pdataptr::Ptr{MyDataPtr}=nothing
     )::Nothing
-    # I should define an equivalent call to c_f_pointer(pdataptr,pdata) and an equivalent structure to pdata and pdataptr
     x_wrap = unsafe_wrap(Array, x, n)
     hlcol_wrap = unsafe_wrap(Array, hlcol, lim)
     hlval_wrap = unsafe_wrap(Array, hlval, lim)
@@ -264,7 +355,26 @@ module JuliaInterface4CUTEst
     nothing
   end
 
-  function csc2csr(nlp_obj::CUTEstModel,x_wrap::Vector{Float64},val2::Vector{Float64},col::Vector{Int32},ind2::Vector{Int32},line_len::Vector{Int32})
+  """
+    csc2csr(
+      nlp_obj::CUTEstModel,x_wrap::Vector{Float64},val2::Vector{Float64},col::Vector{Int32},
+      ind2::Vector{Int32},line_len::Vector{Int32}
+    )::Nothing
+
+    Computes jacobian of constraints and convert it to Compressed Sparse Row format.
+    Parameters:
+    nlp_obj::CUTEstModel: stores a CUTEst object that describes optimization problem.
+    x_wrap::Vector{Float64}: vector that stores variables of optimization problem
+    val2::Vector{Float64}: stores non zero elements in CSC format.
+    col::Vector{Int32}: stores columns indexes of elements from jval.
+    ind2::Vector{Int32}: stores indexes from jval of elements that are first elements 
+    of its respective line in original matrix.
+    line_len::Vector{Int32}: stores quantity of non zero elements in each line.
+  """
+  function csc2csr(
+    nlp_obj::CUTEstModel,x_wrap::Vector{Float64},val2::Vector{Float64},col::Vector{Int32},
+    ind2::Vector{Int32},line_len::Vector{Int32}
+  )::Nothing
     jacobian = jac(nlp_obj, x_wrap)
     m::Int64 = jacobian.m
     n::Int64 = jacobian.n
@@ -308,5 +418,7 @@ module JuliaInterface4CUTEst
       val2[cnt[row[j]]] = val1[j]
       cnt[row[j]] = cnt[row[j]] + 1
     end
+
+    nothing
   end
 end
